@@ -8,7 +8,7 @@ namespace pmp {
 
 void read_obj(SurfaceMesh& mesh, const std::filesystem::path& file)
 {
-    std::array<char, 200> s;
+    std::array<char, 300> s;
     float x, y, z;
     std::vector<Vertex> vertices;
     std::vector<TexCoord> all_tex_coords; //individual texture coordinates
@@ -24,10 +24,10 @@ void read_obj(SurfaceMesh& mesh, const std::filesystem::path& file)
         throw IOException("Failed to open file: " + file.string());
 
     // clear line once
-    memset(s.data(), 0, 200);
+    memset(s.data(), 0, 300);
 
     // parse line by line (currently only supports vertex positions & faces
-    while (in && !feof(in) && fgets(s.data(), 200, in))
+    while (in && !feof(in) && fgets(s.data(), 300, in))
     {
         // comment
         if (s[0] == '#' || isspace(s[0]))
@@ -165,7 +165,7 @@ void read_obj(SurfaceMesh& mesh, const std::filesystem::path& file)
             }
         }
         // clear line
-        memset(s.data(), 0, 200);
+        memset(s.data(), 0, 300);
     }
 
     // if there are no textures, delete texture property!
