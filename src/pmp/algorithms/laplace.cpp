@@ -3,8 +3,12 @@
 // Distributed under a MIT-style license, see LICENSE.txt for details.
 
 #include "pmp/algorithms/laplace.h"
+#include "pmp/algorithms/differential_geometry.h"
 
 namespace pmp {
+
+
+//=== hidden internal functions =====================================================
 
 namespace {
 
@@ -157,7 +161,7 @@ void triangle_laplace_matrix(const Eigen::Vector3d& p0,
                              const Eigen::Vector3d& p1,
                              const Eigen::Vector3d& p2, DenseMatrix& Ltri)
 {
-    std::array<double, 3> l, l2, cot;
+    std::array<double, 3> l2, cot;
 
     // squared edge lengths
     l2[0] = (p1 - p2).squaredNorm();
@@ -165,6 +169,7 @@ void triangle_laplace_matrix(const Eigen::Vector3d& p0,
     l2[2] = (p0 - p1).squaredNorm();
 
     // edge lengths
+    std::array<double, 3> l;
     l[0] = sqrt(l2[0]);
     l[1] = sqrt(l2[1]);
     l[2] = sqrt(l2[2]);
@@ -172,7 +177,25 @@ void triangle_laplace_matrix(const Eigen::Vector3d& p0,
     // triangle area
     const double arg = (l[0] + (l[1] + l[2])) * (l[2] - (l[0] - l[1])) *
                        (l[2] + (l[0] - l[1])) * (l[0] + (l[1] - l[2]));
-    const double area = 0.5 * sqrt(arg);
+
+    double area = 0.5 * sqrt(arg);
+
+    //double area = 0.5 * (p1-p2).cross(p1-p0).norm();
+
+    if (LAPLACE_VERSION == 0)
+    {
+        //std::array<double, 3> l;
+        //l[0] = sqrt(l2[0]);
+        //l[1] = sqrt(l2[1]);
+        //l[2] = sqrt(l2[2]);
+        double h = fmax(l[0], fmax(l[1], l[2]));
+        double C = 1e-2;
+        area = fmax(C*pow(h,3), area);
+    }
+    else if (LAPLACE_VERSION == 1)
+    {
+        area = fmax(1e-8, area);
+    }
 
     if (area > std::numeric_limits<double>::min())
     {
@@ -345,6 +368,8 @@ void divmass_matrix(const SurfaceMesh& mesh, DiagonalMatrix& M)
 }
 
 } // anonymous namespace
+
+//=== public functions  ==============================================================
 
 void uniform_mass_matrix(const SurfaceMesh& mesh, DiagonalMatrix& M)
 {

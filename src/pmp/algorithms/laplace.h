@@ -8,7 +8,7 @@
 #include "pmp/algorithms/numerics.h"
 
 namespace pmp {
-
+inline int LAPLACE_VERSION = 2;
 //! \brief Construct the mass matrix for the uniform Laplacian.
 //! \details Matrix is diagonal and positive definite.
 //! M(i,i) is the valence of vertex i.
