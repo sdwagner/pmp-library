@@ -182,7 +182,7 @@ void triangle_laplace_matrix(const Eigen::Vector3d& p0,
 
     //double area = 0.5 * (p1-p2).cross(p1-p0).norm();
 
-    if (LAPLACE_VERSION == 0)
+    if (LAPLACE_VERSION == 2)
     {
         //std::array<double, 3> l;
         //l[0] = sqrt(l2[0]);
