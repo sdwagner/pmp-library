@@ -4,6 +4,7 @@
 #pragma once
 
 #include "pmp/surface_mesh.h"
+#include "pmp/nonmanifold_surface_mesh.h"
 
 namespace pmp {
 
@@ -25,6 +26,7 @@ void face_normals(SurfaceMesh& mesh);
 //! \note This algorithm works on general polygon meshes.
 //! \ingroup algorithms
 Normal vertex_normal(const SurfaceMesh& mesh, Vertex v);
+Normal vertex_normal(const NonManifoldSurfaceMesh& mesh, Vertex v);
 
 //! \brief Compute the normal vector of face \p f.
 //! \details Normal is computed as (normalized) sum of per-corner
@@ -33,6 +35,7 @@ Normal vertex_normal(const SurfaceMesh& mesh, Vertex v);
 //! \note This algorithm works on general polygon meshes.
 //! \ingroup algorithms
 Normal face_normal(const SurfaceMesh& mesh, Face f);
+Normal face_normal(const NonManifoldSurfaceMesh& mesh, Face f);
 
 //! \brief Compute the normal vector of the polygon corner specified by the
 //! target vertex of halfedge \p h.
@@ -41,5 +44,6 @@ Normal face_normal(const SurfaceMesh& mesh, Face f);
 //! \note This algorithm works on general polygon meshes.
 //! \ingroup algorithms
 Normal corner_normal(const SurfaceMesh& mesh, Halfedge h, Scalar crease_angle);
+Normal corner_normal(const NonManifoldSurfaceMesh& mesh, Halfedge h, Scalar crease_angle);
 
 } // namespace pmp

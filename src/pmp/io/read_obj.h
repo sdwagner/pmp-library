@@ -5,10 +5,11 @@
 
 #include <filesystem>
 
-#include "pmp/surface_mesh.h"
+#include "pmp/nonmanifold_surface_mesh.h"
 
 namespace pmp {
 
+void read_obj(NonManifoldSurfaceMesh& mesh, const std::filesystem::path& file);
 void read_obj(SurfaceMesh& mesh, const std::filesystem::path& file);
 
 } // namespace pmp

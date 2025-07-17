@@ -123,6 +123,7 @@ public:
 
     friend class PropertyContainer;
     friend class SurfaceMesh;
+    friend class NonManifoldSurfaceMesh;
 
     explicit Property(PropertyArray<T>* p = nullptr) : parray_(p) {}
 

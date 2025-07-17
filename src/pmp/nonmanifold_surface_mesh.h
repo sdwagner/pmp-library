@@ -11,12 +11,14 @@
 #include <iterator>
 #include <ostream>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include "pmp/types.h"
 #include "pmp/properties.h"
 #include "pmp/exceptions.h"
+#include "pmp/surface_mesh.h"
 
 namespace pmp {
 
@@ -25,179 +27,11 @@ struct IOFlags;
 //! \addtogroup core
 //!@{
 
-// Handle Types
-
-//! Base class for all entity handles types.
-//! \details internally it is basically an index.
-class Handle
-{
-public:
-    //! default constructor with invalid index
-    explicit Handle(IndexType idx = PMP_MAX_INDEX) : idx_(idx) {}
-
-    //! Get the underlying index of this handle
-    IndexType idx() const { return idx_; }
-
-    //! reset handle to be invalid (index=PMP_MAX_INDEX.)
-    void reset() { idx_ = PMP_MAX_INDEX; }
-
-    //! \return whether the handle is valid, i.e., the index is not equal to PMP_MAX_INDEX.
-    bool is_valid() const { return idx_ != PMP_MAX_INDEX; }
-
-    //! are two handles equal?
-    auto operator<=>(const Handle& rhs) const = default;
-
-private:
-    friend class SurfaceMesh;
-    friend class NonManifoldSurfaceMesh;
-    IndexType idx_;
-};
-
-//! this type represents a vertex (internally it is basically an index)
-class Vertex : public Handle
-{
-    using Handle::Handle;
-};
-
-//! this type represents a halfedge (internally it is basically an index)
-class Halfedge : public Handle
-{
-    using Handle::Handle;
-};
-
-//! this type represents an edge (internally it is basically an index)
-class Edge : public Handle
-{
-    using Handle::Handle;
-};
-
-//! this type represents a face (internally it is basically an index)
-class Face : public Handle
-{
-    using Handle::Handle;
-};
-
-// Output operators
-
-//! output a Vertex to a stream
-inline std::ostream& operator<<(std::ostream& os, Vertex v)
-{
-    return (os << 'v' << v.idx());
-}
-
-//! output a Halfedge to a stream
-inline std::ostream& operator<<(std::ostream& os, Halfedge h)
-{
-    return (os << 'h' << h.idx());
-}
-
-//! output an Edge to a stream
-inline std::ostream& operator<<(std::ostream& os, Edge e)
-{
-    return (os << 'e' << e.idx());
-}
-
-//! output a Face to a stream
-inline std::ostream& operator<<(std::ostream& os, Face f)
-{
-    return (os << 'f' << f.idx());
-}
-
-// Property Types
-
-//! Vertex property of type T
-template <class T>
-class VertexProperty : public Property<T>
-{
-public:
-    //! default constructor
-    explicit VertexProperty() = default;
-    explicit VertexProperty(Property<T> p) : Property<T>(p) {}
-
-    //! access the data stored for vertex \p v
-    typename Property<T>::reference operator[](Vertex v)
-    {
-        return Property<T>::operator[](v.idx());
-    }
-
-    //! access the data stored for vertex \p v
-    typename Property<T>::const_reference operator[](Vertex v) const
-    {
-        return Property<T>::operator[](v.idx());
-    }
-};
-
-//! Halfedge property of type T
-template <class T>
-class HalfedgeProperty : public Property<T>
-{
-public:
-    //! default constructor
-    explicit HalfedgeProperty() = default;
-    explicit HalfedgeProperty(Property<T> p) : Property<T>(p) {}
-
-    //! access the data stored for halfedge \p h
-    typename Property<T>::reference operator[](Halfedge h)
-    {
-        return Property<T>::operator[](h.idx());
-    }
-
-    //! access the data stored for halfedge \p h
-    typename Property<T>::const_reference operator[](Halfedge h) const
-    {
-        return Property<T>::operator[](h.idx());
-    }
-};
-
-//! Edge property of type T
-template <class T>
-class EdgeProperty : public Property<T>
-{
-public:
-    //! default constructor
-    explicit EdgeProperty() = default;
-    explicit EdgeProperty(Property<T> p) : Property<T>(p) {}
-
-    //! access the data stored for edge \p e
-    typename Property<T>::reference operator[](Edge e)
-    {
-        return Property<T>::operator[](e.idx());
-    }
-
-    //! access the data stored for edge \p e
-    typename Property<T>::const_reference operator[](Edge e) const
-    {
-        return Property<T>::operator[](e.idx());
-    }
-};
-
-//! Face property of type T
-template <class T>
-class FaceProperty : public Property<T>
-{
-public:
-    //! default constructor
-    explicit FaceProperty() = default;
-    explicit FaceProperty(Property<T> p) : Property<T>(p) {}
-
-    //! access the data stored for face \p f
-    typename Property<T>::reference operator[](Face f)
-    {
-        return Property<T>::operator[](f.idx());
-    }
-
-    //! access the data stored for face \p f
-    typename Property<T>::const_reference operator[](Face f) const
-    {
-        return Property<T>::operator[](f.idx());
-    }
-};
-
 //! \brief A class for representing polygon surface meshes.
 //! \details This class implements a half-edge data structure for surface meshes.
 //! See \cite sieger_2011_design for details on the design and implementation.
 //! \note This class only supports 2-manifold surface meshes with boundary.
-class SurfaceMesh
+class NonManifoldSurfaceMesh
 {
 public:
     //! \name Iterator Types
@@ -214,7 +48,7 @@ public:
         using iterator_category = std::bidirectional_iterator_tag;
 
         //! Default constructor
-        VertexIterator(Vertex v = Vertex(), const SurfaceMesh* m = nullptr)
+        VertexIterator(Vertex v = Vertex(), const NonManifoldSurfaceMesh* m = nullptr)
             : handle_(v), mesh_(m)
         {
             if (mesh_ && mesh_->has_garbage())
@@ -268,7 +102,7 @@ public:
 
     private:
         Vertex handle_;
-        const SurfaceMesh* mesh_;
+        const NonManifoldSurfaceMesh* mesh_;
     };
 
     //! this class iterates linearly over all halfedges
@@ -285,7 +119,7 @@ public:
 
         //! Default constructor
         HalfedgeIterator(Halfedge h = Halfedge(),
-                         const SurfaceMesh* mesh = nullptr)
+                         const NonManifoldSurfaceMesh* mesh = nullptr)
             : handle_(h), mesh_(mesh)
         {
             if (mesh_ && mesh_->has_garbage())
@@ -339,7 +173,7 @@ public:
 
     private:
         Halfedge handle_;
-        const SurfaceMesh* mesh_;
+        const NonManifoldSurfaceMesh* mesh_;
     };
 
     //! this class iterates linearly over all edges
@@ -355,7 +189,7 @@ public:
         using iterator_category = std::bidirectional_iterator_tag;
 
         //! Default constructor
-        EdgeIterator(Edge e = Edge(), const SurfaceMesh* mesh = nullptr)
+        EdgeIterator(Edge e = Edge(), const NonManifoldSurfaceMesh* mesh = nullptr)
             : handle_(e), mesh_(mesh)
         {
             if (mesh_ && mesh_->has_garbage())
@@ -409,7 +243,7 @@ public:
 
     private:
         Edge handle_;
-        const SurfaceMesh* mesh_;
+        const NonManifoldSurfaceMesh* mesh_;
     };
 
     //! this class iterates linearly over all faces
@@ -425,7 +259,7 @@ public:
         using iterator_category = std::bidirectional_iterator_tag;
 
         //! Default constructor
-        FaceIterator(Face f = Face(), const SurfaceMesh* m = nullptr)
+        FaceIterator(Face f = Face(), const NonManifoldSurfaceMesh* m = nullptr)
             : handle_(f), mesh_(m)
         {
             if (mesh_ && mesh_->has_garbage())
@@ -479,7 +313,7 @@ public:
 
     private:
         Face handle_;
-        const SurfaceMesh* mesh_;
+        const NonManifoldSurfaceMesh* mesh_;
     };
 
     //!@}
@@ -571,12 +405,13 @@ public:
         using iterator_category = std::bidirectional_iterator_tag;
 
         //! default constructor
-        VertexAroundVertexCirculator(const SurfaceMesh* mesh = nullptr,
+        VertexAroundVertexCirculator(const NonManifoldSurfaceMesh* mesh = nullptr,
                                      Vertex v = Vertex())
             : mesh_(mesh)
         {
             if (mesh_)
                 halfedge_ = mesh_->halfedge(v);
+            first_ = halfedge_;
         }
 
         //! are two circulators equal?
@@ -597,8 +432,32 @@ public:
         VertexAroundVertexCirculator& operator++()
         {
             assert(mesh_);
-            halfedge_ = mesh_->ccw_rotated_halfedge(halfedge_);
+            if (loaded)
+            {
+                halfedge_ = cache_;
+                halfedge_ = mesh_->hconn_[halfedge_].next_neighbor_from_;
+                cache_ = Halfedge();
+                loaded = false;
+            }
+            else
+            {
+                if (!mesh_->opposite_halfedge(mesh_->prev_halfedge(halfedge_)).is_valid())
+                {
+                    cache_ = halfedge_;
+                    halfedge_ = mesh_->prev_halfedge(halfedge_);
+                    loaded = true;
+                }
+                else
+                {
+                    halfedge_ = mesh_->hconn_[halfedge_].next_neighbor_from_;
+                }
+            }
+            if (halfedge_ != first_ && visited_.contains((*(*this)).idx()))
+            {
+                ++(*this);
+            }
             is_active_ = true;
+            visited_.emplace((*(*this)).idx());
             return *this;
         }
 
@@ -610,27 +469,11 @@ public:
             return tmp;
         }
 
-        //! pre-decrement (rotate clockwise)
-        VertexAroundVertexCirculator& operator--()
-        {
-            assert(mesh_);
-            halfedge_ = mesh_->cw_rotated_halfedge(halfedge_);
-            return *this;
-        }
-
-        //! post-decrement (rotate clockwise)
-        VertexAroundVertexCirculator operator--(int)
-        {
-            auto tmp = *this;
-            --(*this);
-            return tmp;
-        }
-
         //! get the vertex the circulator refers to
         Vertex operator*() const
         {
             assert(mesh_);
-            return mesh_->to_vertex(halfedge_);
+            return (cache_.is_valid()) ? mesh_->from_vertex(halfedge_) : mesh_->to_vertex(halfedge_);
         }
 
         //! cast to bool: true if vertex is not isolated
@@ -653,9 +496,12 @@ public:
         }
 
     private:
-        const SurfaceMesh* mesh_;
-        Halfedge halfedge_;
+        const NonManifoldSurfaceMesh* mesh_;
+        Halfedge halfedge_, first_, cache_;
         bool is_active_{true}; // helper for C++11 range-based for-loops
+        bool loaded{false};
+        std::unordered_set<int> visited_;
+
     };
 
     //! this class circulates through all outgoing halfedges of a vertex.
@@ -671,7 +517,7 @@ public:
         using iterator_category = std::bidirectional_iterator_tag;
 
         //! default constructor
-        HalfedgeAroundVertexCirculator(const SurfaceMesh* mesh = nullptr,
+        HalfedgeAroundVertexCirculator(const NonManifoldSurfaceMesh* mesh = nullptr,
                                        Vertex v = Vertex())
             : mesh_(mesh)
         {
@@ -697,7 +543,7 @@ public:
         HalfedgeAroundVertexCirculator& operator++()
         {
             assert(mesh_);
-            halfedge_ = mesh_->ccw_rotated_halfedge(halfedge_);
+            halfedge_ = mesh_->hconn_[halfedge_].next_neighbor_from_;
             is_active_ = true;
             return *this;
         }
@@ -714,7 +560,7 @@ public:
         HalfedgeAroundVertexCirculator& operator--()
         {
             assert(mesh_);
-            halfedge_ = mesh_->cw_rotated_halfedge(halfedge_);
+            halfedge_ = mesh_->hconn_[halfedge_].prev_neighbor_from_;
             return *this;
         }
 
@@ -746,7 +592,7 @@ public:
         }
 
     private:
-        const SurfaceMesh* mesh_;
+        const NonManifoldSurfaceMesh* mesh_;
         Halfedge halfedge_;
         bool is_active_{true}; // helper for C++11 range-based for-loops
     };
@@ -764,12 +610,13 @@ public:
         using iterator_category = std::bidirectional_iterator_tag;
 
         //! default constructor
-        EdgeAroundVertexCirculator(const SurfaceMesh* mesh = nullptr,
+        EdgeAroundVertexCirculator(const NonManifoldSurfaceMesh* mesh = nullptr,
                                    Vertex v = Vertex())
             : mesh_(mesh)
         {
             if (mesh_)
                 halfedge_ = mesh_->halfedge(v);
+            first_ = halfedge_;
         }
 
         //! are two circulators equal?
@@ -790,8 +637,32 @@ public:
         EdgeAroundVertexCirculator& operator++()
         {
             assert(mesh_);
-            halfedge_ = mesh_->ccw_rotated_halfedge(halfedge_);
+            if (loaded)
+            {
+                halfedge_ = cache_;
+                halfedge_ = mesh_->hconn_[halfedge_].next_neighbor_from_;
+                cache_ = Halfedge();
+                loaded = false;
+            }
+            else
+            {
+                if (!mesh_->opposite_halfedge(mesh_->prev_halfedge(halfedge_)).is_valid())
+                {
+                    cache_ = halfedge_;
+                    halfedge_ = mesh_->prev_halfedge(halfedge_);
+                    loaded = true;
+                }
+                else
+                {
+                    halfedge_ = mesh_->hconn_[halfedge_].next_neighbor_from_;
+                }
+            }
+            if (halfedge_ != first_ && visited_.contains((*(*this)).idx()))
+            {
+                ++(*this);
+            }
             is_active_ = true;
+            visited_.emplace((*(*this)).idx());
             return *this;
         }
 
@@ -800,22 +671,6 @@ public:
         {
             auto tmp = *this;
             ++(*this);
-            return tmp;
-        }
-
-        //! pre-decrement (rotate clockwise)
-        EdgeAroundVertexCirculator& operator--()
-        {
-            assert(mesh_);
-            halfedge_ = mesh_->cw_rotated_halfedge(halfedge_);
-            return *this;
-        }
-
-        //! post-decrement (rotate clockwise)
-        EdgeAroundVertexCirculator operator--(int)
-        {
-            auto tmp = *this;
-            --(*this);
             return tmp;
         }
 
@@ -839,9 +694,11 @@ public:
         }
 
     private:
-        const SurfaceMesh* mesh_;
-        Halfedge halfedge_;
+        const NonManifoldSurfaceMesh* mesh_;
+        Halfedge halfedge_, first_, cache_;
         bool is_active_{true}; // helper for C++11 range-based for-loops
+        bool loaded{false};
+        std::unordered_set<int> visited_;
     };
 
     //! this class circulates through all incident faces of a vertex.
@@ -857,15 +714,13 @@ public:
         using iterator_category = std::bidirectional_iterator_tag;
 
         //! construct with mesh and vertex (vertex should not be isolated!)
-        FaceAroundVertexCirculator(const SurfaceMesh* m = nullptr,
+        FaceAroundVertexCirculator(const NonManifoldSurfaceMesh* m = nullptr,
                                    Vertex v = Vertex())
             : mesh_(m)
         {
             if (mesh_)
             {
                 halfedge_ = mesh_->halfedge(v);
-                if (halfedge_.is_valid() && mesh_->is_boundary(halfedge_))
-                    operator++();
             }
         }
 
@@ -887,10 +742,7 @@ public:
         FaceAroundVertexCirculator& operator++()
         {
             assert(mesh_ && halfedge_.is_valid());
-            do
-            {
-                halfedge_ = mesh_->ccw_rotated_halfedge(halfedge_);
-            } while (mesh_->is_boundary(halfedge_));
+            halfedge_ = mesh_->hconn_[halfedge_].next_neighbor_from_;
             is_active_ = true;
             return *this;
         }
@@ -907,9 +759,7 @@ public:
         FaceAroundVertexCirculator& operator--()
         {
             assert(mesh_ && halfedge_.is_valid());
-            do
-                halfedge_ = mesh_->cw_rotated_halfedge(halfedge_);
-            while (mesh_->is_boundary(halfedge_));
+            halfedge_ = mesh_->hconn_[halfedge_].prev_neighbor_from_;
             return *this;
         }
 
@@ -945,7 +795,91 @@ public:
         }
 
     private:
-        const SurfaceMesh* mesh_;
+        const NonManifoldSurfaceMesh* mesh_;
+        Halfedge halfedge_;
+        bool is_active_{true}; // helper for C++11 range-based for-loops
+    };
+
+
+    //! this class circulates through all incident faces of a vertex.
+    //! it also acts as a container-concept for C++11 range-based for loops.
+    //! \sa VertexAroundVertexCirculator, HalfedgeAroundVertexCirculator, faces(Vertex)
+    class FaceAroundEdgeCirculator
+    {
+    public:
+        using difference_type = std::ptrdiff_t;
+        using value_type = Face;
+        using reference = Face&;
+        using pointer = Face*;
+        using iterator_category = std::bidirectional_iterator_tag;
+
+        //! construct with mesh and vertex (vertex should not be isolated!)
+        FaceAroundEdgeCirculator(const NonManifoldSurfaceMesh* m = nullptr,
+                                   Edge e = Edge())
+            : mesh_(m)
+        {
+            if (mesh_)
+            {
+                halfedge_ = mesh_->halfedge(e, 0);
+            }
+        }
+
+        //! are two circulators equal?
+        bool operator==(const FaceAroundEdgeCirculator& rhs) const
+        {
+            assert(mesh_);
+            assert(mesh_ == rhs.mesh_);
+            return (is_active_ && (halfedge_ == rhs.halfedge_));
+        }
+
+        //! are two circulators different?
+        bool operator!=(const FaceAroundEdgeCirculator& rhs) const
+        {
+            return !operator==(rhs);
+        }
+
+        //! pre-increment (rotates counter-clockwise)
+        FaceAroundEdgeCirculator& operator++()
+        {
+            assert(mesh_ && halfedge_.is_valid());
+            halfedge_ = mesh_->next_sibling_halfedge(halfedge_);
+            is_active_ = true;
+            return *this;
+        }
+
+        //! post-increment (rotate counter-clockwise)
+        FaceAroundEdgeCirculator operator++(int)
+        {
+            auto tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        //! get the face the circulator refers to
+        Face operator*() const
+        {
+            assert(mesh_ && halfedge_.is_valid());
+            return mesh_->face(halfedge_);
+        }
+
+        //! cast to bool: true if vertex is not isolated
+        operator bool() const { return halfedge_.is_valid(); }
+
+        // helper for C++11 range-based for-loops
+        FaceAroundEdgeCirculator& begin()
+        {
+            is_active_ = !halfedge_.is_valid();
+            return *this;
+        }
+        // helper for C++11 range-based for-loops
+        FaceAroundEdgeCirculator& end()
+        {
+            is_active_ = true;
+            return *this;
+        }
+
+    private:
+        const NonManifoldSurfaceMesh* mesh_;
         Halfedge halfedge_;
         bool is_active_{true}; // helper for C++11 range-based for-loops
     };
@@ -963,7 +897,7 @@ public:
         using iterator_category = std::bidirectional_iterator_tag;
 
         //! default constructor
-        VertexAroundFaceCirculator(const SurfaceMesh* m = nullptr,
+        VertexAroundFaceCirculator(const NonManifoldSurfaceMesh* m = nullptr,
                                    Face f = Face())
             : mesh_(m)
         {
@@ -1039,7 +973,102 @@ public:
         }
 
     private:
-        const SurfaceMesh* mesh_;
+        const NonManifoldSurfaceMesh* mesh_;
+        Halfedge halfedge_;
+        bool is_active_{true}; // helper for C++11 range-based for-loops
+    };
+
+    //! this class circulates through the vertices of a face.
+    //! it also acts as a container-concept for C++11 range-based for loops.
+    //! \sa HalfedgeAroundFaceCirculator, vertices(Face)
+    class HalfedgeAroundEdgeCirculator
+    {
+    public:
+        using difference_type = std::ptrdiff_t;
+        using value_type = Halfedge;
+        using reference = Halfedge&;
+        using pointer = Halfedge*;
+        using iterator_category = std::bidirectional_iterator_tag;
+
+        //! default constructor
+        HalfedgeAroundEdgeCirculator(const NonManifoldSurfaceMesh* m = nullptr,
+                                   Edge e = Edge())
+            : mesh_(m)
+        {
+            if (mesh_)
+                halfedge_ = mesh_->halfedge(e, 0);
+        }
+
+        //! are two circulators equal?
+        bool operator==(const HalfedgeAroundEdgeCirculator& rhs) const
+        {
+            assert(mesh_);
+            assert(mesh_ == rhs.mesh_);
+            return (is_active_ && (halfedge_ == rhs.halfedge_));
+        }
+
+        //! are two circulators different?
+        bool operator!=(const HalfedgeAroundEdgeCirculator& rhs) const
+        {
+            return !operator==(rhs);
+        }
+
+        //! pre-increment (rotates counter-clockwise)
+        HalfedgeAroundEdgeCirculator& operator++()
+        {
+            assert(mesh_ && halfedge_.is_valid());
+            halfedge_ = mesh_->next_sibling_halfedge(halfedge_);
+            is_active_ = true;
+            return *this;
+        }
+
+        //! post-increment (rotate counter-clockwise)
+        HalfedgeAroundEdgeCirculator operator++(int)
+        {
+            auto tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        //! pre-increment (rotates counter-clockwise)
+        HalfedgeAroundEdgeCirculator& operator--()
+        {
+            assert(mesh_ && halfedge_.is_valid());
+            halfedge_ = mesh_->prev_sibling_halfedge(halfedge_);
+            is_active_ = true;
+            return *this;
+        }
+
+        //! post-increment (rotate counter-clockwise)
+        HalfedgeAroundEdgeCirculator operator--(int)
+        {
+            auto tmp = *this;
+            ++(*this);
+            return tmp;
+        }
+
+        //! get the vertex the circulator refers to
+        Halfedge operator*() const
+        {
+            assert(mesh_ && halfedge_.is_valid());
+            return halfedge_;
+        }
+
+        // helper for C++11 range-based for-loops
+        HalfedgeAroundEdgeCirculator& begin()
+        {
+            is_active_ = false;
+            return *this;
+        }
+        // helper for C++11 range-based for-loops
+        HalfedgeAroundEdgeCirculator& end()
+        {
+            is_active_ = true;
+            return *this;
+        }
+
+    private:
+        const NonManifoldSurfaceMesh* mesh_;
         Halfedge halfedge_;
         bool is_active_{true}; // helper for C++11 range-based for-loops
     };
@@ -1057,7 +1086,7 @@ public:
         using iterator_category = std::bidirectional_iterator_tag;
 
         //! default constructor
-        HalfedgeAroundFaceCirculator(const SurfaceMesh* m = nullptr,
+        HalfedgeAroundFaceCirculator(const NonManifoldSurfaceMesh* m = nullptr,
                                      Face f = Face())
             : mesh_(m)
         {
@@ -1129,7 +1158,7 @@ public:
         }
 
     private:
-        const SurfaceMesh* mesh_;
+        const NonManifoldSurfaceMesh* mesh_;
         Halfedge halfedge_;
         bool is_active_{true}; // helper for C++11 range-based for-loops
     };
@@ -1139,20 +1168,20 @@ public:
     //!@{
 
     //! default constructor
-    SurfaceMesh();
+    NonManifoldSurfaceMesh();
 
     //! destructor
-    virtual ~SurfaceMesh();
+    virtual ~NonManifoldSurfaceMesh();
 
     //! copy constructor: copies \p rhs to \p *this. performs a deep copy of all
     //! properties.
-    SurfaceMesh(const SurfaceMesh& rhs) { operator=(rhs); }
+    NonManifoldSurfaceMesh(const NonManifoldSurfaceMesh& rhs) { operator=(rhs); }
 
     //! assign \p rhs to \p *this. performs a deep copy of all properties.
-    SurfaceMesh& operator=(const SurfaceMesh& rhs);
+    NonManifoldSurfaceMesh& operator=(const NonManifoldSurfaceMesh& rhs);
 
     //! assign \p rhs to \p *this. does not copy custom properties.
-    SurfaceMesh& assign(const SurfaceMesh& rhs);
+    NonManifoldSurfaceMesh& assign(const NonManifoldSurfaceMesh& rhs);
 
     //!@}
     //! \name Add new elements by hand
@@ -1194,7 +1223,7 @@ public:
     size_t n_vertices() const { return vertices_size() - deleted_vertices_; }
 
     //! \return number of halfedge in the mesh
-    size_t n_halfedges() const { return halfedges_size() - 2 * deleted_edges_; }
+    size_t n_halfedges() const { return halfedges_size() - deleted_halfedges_; }
 
     //! \return number of edges in the mesh
     size_t n_edges() const { return edges_size() - deleted_edges_; }
@@ -1212,7 +1241,7 @@ public:
     void free_memory();
 
     //! reserve memory (mainly used in file readers)
-    void reserve(size_t nvertices, size_t nedges, size_t nfaces);
+    void reserve(size_t nvertices, size_t nedges, size_t nhedges, size_t nfaces);
 
     //! remove deleted elements
     void garbage_collection();
@@ -1223,7 +1252,7 @@ public:
 
     //! \return whether halfedge \p h is deleted
     //! \sa garbage_collection()
-    bool is_deleted(Halfedge h) const { return edeleted_[edge(h)]; }
+    bool is_deleted(Halfedge h) const { return hdeleted_[h]; }
 
     //! \return whether edge \p e is deleted
     //! \sa garbage_collection()
@@ -1232,6 +1261,51 @@ public:
     //! \return whether face \p f is deleted
     //! \sa garbage_collection()
     bool is_deleted(Face f) const { return fdeleted_[f]; }
+
+
+    bool mark_deleted(Vertex v)
+    {
+        if (!vdeleted_[v])
+        {
+            vdeleted_[v] = true;
+            ++deleted_vertices_;
+            return true;
+        }
+        return false;
+    }
+
+    bool mark_deleted(Halfedge h)
+    {
+        if (!hdeleted_[h])
+        {
+            hdeleted_[h] = true;
+            ++deleted_halfedges_;
+            return true;
+        }
+        return false;
+    }
+
+    bool mark_deleted(Edge e)
+    {
+        if (!edeleted_[e])
+        {
+            edeleted_[e] = true;
+            ++deleted_edges_;
+            return true;
+        }
+        return false;
+    }
+
+    bool mark_deleted(Face f)
+    {
+        if (!fdeleted_[f])
+        {
+            fdeleted_[f] = true;
+            ++deleted_faces_;
+            return true;
+        }
+        return false;
+    }
 
     //! \return whether vertex \p v is valid.
     bool is_valid(Vertex v) const { return v.idx() < vertices_size(); }
@@ -1256,6 +1330,8 @@ public:
     //! set the outgoing halfedge of vertex \p v to \p h
     void set_halfedge(Vertex v, Halfedge h) { vconn_[v].halfedge_ = h; }
 
+    void set_halfedge(Edge e, Halfedge h) { econn_[e].halfedge_ = h; }
+
     //! \return whether \p v is a boundary vertex
     bool is_boundary(Vertex v) const
     {
@@ -1277,23 +1353,21 @@ public:
         if (hit)
             do
             {
-                if (is_boundary(*hit))
+                if (is_boundary(edge(*hit)))
                     ++n;
             } while (++hit != hend);
         return n < 2;
     }
 
     //! \return the vertex the halfedge \p h points to
-    inline Vertex to_vertex(Halfedge h) const { return hconn_[h].vertex_; }
+    inline Vertex to_vertex(Halfedge h) const { return hconn_[h].to_vertex_; }
 
     //! \return the vertex the halfedge \p h emanates from
-    inline Vertex from_vertex(Halfedge h) const
-    {
-        return to_vertex(opposite_halfedge(h));
-    }
+    inline Vertex from_vertex(Halfedge h) const { return hconn_[hconn_[h].prev_halfedge_].to_vertex_; }
 
     //! sets the vertex the halfedge \p h points to to \p v
-    inline void set_vertex(Halfedge h, Vertex v) { hconn_[h].vertex_ = v; }
+    inline void set_to_vertex(Halfedge h, Vertex v) { hconn_[h].to_vertex_ = v; }
+
 
     //! \return the face incident to halfedge \p h
     Face face(Halfedge h) const { return hconn_[h].face_; }
@@ -1328,52 +1402,48 @@ public:
     }
 
     //! \return the opposite halfedge of \p h
+    inline Halfedge next_sibling_halfedge(Halfedge h) const
+    {
+        return hconn_[h].next_sibling_;
+    }
+    inline Halfedge prev_sibling_halfedge(Halfedge h) const
+    {
+        return hconn_[h].prev_sibling_;
+    }
+
     inline Halfedge opposite_halfedge(Halfedge h) const
     {
-        return Halfedge((h.idx() & 1) ? h.idx() - 1 : h.idx() + 1);
-    }
-
-    //! \return the halfedge that is rotated counter-clockwise around the
-    //! start vertex of \p h. it is the opposite halfedge of the previous
-    //! halfedge of \p h.
-    inline Halfedge ccw_rotated_halfedge(Halfedge h) const
-    {
-        return opposite_halfedge(prev_halfedge(h));
-    }
-
-    //! \return the halfedge that is rotated clockwise around the start
-    //! vertex of \p h. it is the next halfedge of the opposite halfedge of
-    //! \p h.
-    inline Halfedge cw_rotated_halfedge(Halfedge h) const
-    {
-        return next_halfedge(opposite_halfedge(h));
+        Halfedge opp_h = next_sibling_halfedge(h);
+        while (opp_h.is_valid() && opp_h != h && halfedge_sibling_same_orientation(opp_h, h))
+            opp_h = next_sibling_halfedge(opp_h);
+        if (opp_h == h)
+            return Halfedge();
+        return opp_h;
     }
 
     //! \return the edge that contains halfedge \p h as one of its two
     //! halfedges.
-    inline Edge edge(Halfedge h) const { return Edge(h.idx() >> 1); }
-
-    //! \return whether h is a boundary halfedge, i.e., if its face does not exist.
-    inline bool is_boundary(Halfedge h) const { return !face(h).is_valid(); }
+    inline Edge edge(Halfedge h) const { return hconn_[h].edge_; }
 
     //! \return the \p i'th halfedge of edge \p e. \p i has to be 0 or 1.
     inline Halfedge halfedge(Edge e, unsigned int i) const
     {
-        assert(i <= 1);
-        return Halfedge((e.idx() << 1) + i);
+        auto h = econn_[e].halfedge_;
+        for (unsigned int j = 0; j < i; j++)
+            h = next_sibling_halfedge(h);
+        return h;
     }
 
     //! \return the \p i'th vertex of edge \p e. \p i has to be 0 or 1.
     inline Vertex vertex(Edge e, unsigned int i) const
     {
         assert(i <= 1);
-        return to_vertex(halfedge(e, i));
+        return (i == 0) ? from_vertex(halfedge(e, 0)) : to_vertex(halfedge(e, 0));
     }
 
     //! \return the face incident to the \p i'th halfedge of edge \p e. \p i has to be 0 or 1.
     Face face(Edge e, unsigned int i) const
     {
-        assert(i <= 1);
         return face(halfedge(e, i));
     }
 
@@ -1381,11 +1451,14 @@ public:
     //! halfedges is a boundary halfedge.
     bool is_boundary(Edge e) const
     {
-        return (is_boundary(halfedge(e, 0)) || is_boundary(halfedge(e, 1)));
+        return next_sibling_halfedge(econn_[e].halfedge_) == econn_[e].halfedge_;
     }
 
     //! \return a halfedge of face \p f
     Halfedge halfedge(Face f) const { return fconn_[f].halfedge_; }
+
+    //! \return a halfedge of edge \p e
+    Halfedge halfedge(Edge e) const { return econn_[e].halfedge_; }
 
     //! sets the halfedge of face \p f to \p h
     void set_halfedge(Face f, Halfedge h) { fconn_[f].halfedge_ = h; }
@@ -1397,12 +1470,14 @@ public:
         const Halfedge hh = h;
         do
         {
-            if (is_boundary(opposite_halfedge(h)))
+            if (is_boundary(edge(h)))
                 return true;
             h = next_halfedge(h);
         } while (h != hh);
         return false;
     }
+
+    void set_edge(Halfedge h, Edge e) { hconn_[h].edge_ = e; }
 
     //!@}
     //! \name Property handling
@@ -1693,6 +1768,12 @@ public:
         return FaceAroundVertexCirculator(this, v);
     }
 
+    //! \return circulator for faces around edge \p e
+    FaceAroundEdgeCirculator faces(Edge e) const
+    {
+        return FaceAroundEdgeCirculator(this, e);
+    }
+
     //! \return circulator for vertices of face \p f
     VertexAroundFaceCirculator vertices(Face f) const
     {
@@ -1703,6 +1784,12 @@ public:
     HalfedgeAroundFaceCirculator halfedges(Face f) const
     {
         return HalfedgeAroundFaceCirculator(this, f);
+    }
+
+    //! \return circulator for halfedges of face \p f
+    HalfedgeAroundEdgeCirculator halfedges(Edge e) const
+    {
+        return HalfedgeAroundEdgeCirculator(this, e);
     }
 
     //!@}
@@ -1834,6 +1921,9 @@ public:
     //! Compute the valence of face \p f (its number of vertices).
     size_t valence(Face f) const;
 
+    //! Compute the valence of edge \p e (its number of halfedges).
+    size_t valence(Edge e) const;
+
     //! Delete vertex \p v from the mesh.
     //! \note Only marks the vertex as deleted. Call garbage_collection() to finally remove deleted entities.
     void delete_vertex(Vertex v);
@@ -1871,11 +1961,16 @@ public:
         if (vertices_size() == PMP_MAX_INDEX - 1)
         {
             auto what =
-                "SurfaceMesh: cannot allocate vertex, max. index reached";
+                "NonManifoldSurfaceMesh: cannot allocate vertex, max. index reached";
             throw AllocationException(what);
         }
         vprops_.push_back();
         return Vertex(static_cast<IndexType>(vertices_size()) - 1);
+    }
+
+    bool halfedge_sibling_same_orientation(const Halfedge h0, const Halfedge h1) const
+    {
+        return hconn_[h0].to_vertex_ == hconn_[h1].to_vertex_;
     }
 
     //! \brief Allocate a new edge, resize edge and halfedge properties accordingly.
@@ -1884,7 +1979,7 @@ public:
     {
         if (halfedges_size() == PMP_MAX_INDEX - 1)
         {
-            auto what = "SurfaceMesh: cannot allocate edge, max. index reached";
+            auto what = "NonManifoldSurfaceMesh: cannot allocate edge, max. index reached";
             throw AllocationException(what);
         }
 
@@ -1904,25 +1999,81 @@ public:
     //! \param end end Vertex of the new edge
     Halfedge new_edge(Vertex start, Vertex end)
     {
-        assert(start != end);
+        if (start == end)
+        {
+            auto what = "NonManifoldSurfaceMesh: No self-edges allowed";
+            throw TopologyException(what);
+        }
 
         if (halfedges_size() == PMP_MAX_INDEX - 1)
         {
-            auto what = "SurfaceMesh: cannot allocate edge, max. index reached";
+            auto what = "NonManifoldSurfaceMesh: cannot allocate edge, max. index reached";
             throw AllocationException(what);
         }
 
         eprops_.push_back();
         hprops_.push_back();
+
+        const Edge e(static_cast<IndexType>(edges_size()) - 1);
+        const Halfedge h(static_cast<IndexType>(halfedges_size()) - 1);
+
+        hconn_[h].edge_ = e;
+
+        hconn_[h].next_neighbor_from_ = h;
+        hconn_[h].prev_neighbor_from_ = h;
+        hconn_[h].next_sibling_ = h;
+        hconn_[h].prev_sibling_ = h;
+
+        econn_[e].halfedge_ = h;
+
+        set_to_vertex(h, end);
+
+        return h;
+    }
+
+    Halfedge new_halfedge(Vertex start, Vertex end)
+    {
+        assert(start != end);
+
+        if (halfedges_size() == PMP_MAX_INDEX - 1)
+        {
+            auto what = "NonManifoldSurfaceMesh: cannot allocate edge, max. index reached";
+            throw AllocationException(what);
+        }
+
         hprops_.push_back();
 
-        const Halfedge h0(static_cast<IndexType>(halfedges_size()) - 2);
-        const Halfedge h1(static_cast<IndexType>(halfedges_size()) - 1);
+        auto e = find_edge(start, end);
+        const Halfedge h(static_cast<IndexType>(halfedges_size()) - 1);
 
-        set_vertex(h0, end);
-        set_vertex(h1, start);
+        const auto first_h = econn_[e].halfedge_;
+        insert_sibling(first_h, h);
 
-        return h0;
+        hconn_[h].next_neighbor_from_ = h;
+        hconn_[h].prev_neighbor_from_ = h;
+
+        hconn_[h].edge_ = e;
+
+        set_to_vertex(h, end);
+
+
+        return h;
+    }
+
+    // Insert h_sibling into doubly-linked sibling list after h
+    void insert_sibling(Halfedge h, Halfedge h_sibling)
+    {
+        if (!h.is_valid())
+        {
+            hconn_[h_sibling].next_sibling_ = h_sibling;
+            hconn_[h_sibling].prev_sibling_ = h_sibling;
+            return;
+        }
+        auto next = next_sibling_halfedge(h);
+        hconn_[next].prev_sibling_ = h_sibling;
+        hconn_[h_sibling].next_sibling_ = hconn_[h].next_sibling_;
+        hconn_[h].next_sibling_ = h_sibling;
+        hconn_[h_sibling].prev_sibling_ = h;
     }
 
     //! \brief Allocate a new face, resize face properties accordingly.
@@ -1931,7 +2082,7 @@ public:
     {
         if (faces_size() == PMP_MAX_INDEX - 1)
         {
-            auto what = "SurfaceMesh: cannot allocate face, max. index reached";
+            auto what = "NonManifoldSurfaceMesh: cannot allocate face, max. index reached";
             throw AllocationException(what);
         }
 
@@ -1952,9 +2103,14 @@ private:
     struct HalfedgeConnectivity
     {
         Face face_;              // face incident to halfedge
-        Vertex vertex_;          // vertex the halfedge points to
+        Vertex to_vertex_;          // vertex the halfedge points to
+        Edge edge_;              // edge incident to halfedge
         Halfedge next_halfedge_; // next halfedge
         Halfedge prev_halfedge_; // previous halfedge
+        Halfedge prev_sibling_;       // Sibling Halfedge (might be opposing)
+        Halfedge next_sibling_;       // Sibling Halfedge (might be opposing)
+        Halfedge next_neighbor_from_; // next neighbor from vertex
+        Halfedge prev_neighbor_from_; // previous neighbor from vertex
     };
 
     struct FaceConnectivity
@@ -1962,9 +2118,48 @@ private:
         Halfedge halfedge_; // a halfedge that is part of the face
     };
 
+    struct EdgeConnectivity
+    {
+        Halfedge halfedge_;
+    };
+
     // make sure that the outgoing halfedge of vertex \p v is a boundary
     // halfedge if \p v is a boundary vertex.
     void adjust_outgoing_halfedge(Vertex v);
+
+
+    void remove_halfedge_from_neighbors(Halfedge h)
+    {
+        if (!h.is_valid())
+            return;
+        if (hconn_[h].prev_neighbor_from_.is_valid() && hconn_[h].prev_neighbor_from_ != h)
+        {
+            auto prev_temp = hconn_[h].prev_neighbor_from_;
+            auto next_temp = hconn_[h].next_neighbor_from_;
+            hconn_[prev_temp].next_neighbor_from_ = next_temp;
+            hconn_[next_temp].prev_neighbor_from_ = prev_temp;
+        }
+    }
+
+    void insert_neighbor_halfedge_from(Halfedge h, Halfedge new_h)
+    {
+        if (!h.is_valid() || !new_h.is_valid())
+            return;
+        remove_halfedge_from_neighbors(new_h);
+        if (hconn_[h].prev_neighbor_from_.is_valid())
+        {
+            auto h_prev = hconn_[h].prev_neighbor_from_;
+            hconn_[h_prev].next_neighbor_from_ = new_h;
+            hconn_[new_h].prev_neighbor_from_ = h_prev;
+        }
+        else
+        {
+            hconn_[h].next_neighbor_from_ = new_h;
+            hconn_[new_h].prev_neighbor_from_ = h;
+        }
+        hconn_[new_h].next_neighbor_from_ = h;
+        hconn_[h].prev_neighbor_from_ = new_h;
+    }
 
     // Helper for halfedge collapse
     void remove_edge_helper(Halfedge h);
@@ -1972,12 +2167,36 @@ private:
     // Helper for halfedge collapse
     void remove_loop_helper(Halfedge h);
 
+    // Remove Halfedge from sibling doubly-linked list
+    // Set edge -> halfedge reference if necessary
+    void remove_sibling_halfedge(Halfedge h)
+    {
+        auto prev_sib = prev_sibling_halfedge(h);
+        auto next_sib = next_sibling_halfedge(h);
+        hconn_[prev_sib].next_sibling_ = next_sib;
+        hconn_[next_sib].prev_sibling_ = prev_sib;
+        if (econn_[edge(h)].halfedge_ == h)
+            econn_[edge(h)].halfedge_ = next_sib;
+    }
+
+
+    void remove_halfedge(Halfedge h)
+    {
+
+        // remove halfedge
+        Vertex const v1 = from_vertex(h);
+        if (halfedge(v1) == h)
+            set_halfedge(v1, hconn_[h].next_neighbor_from_);
+        remove_halfedge_from_neighbors(h);
+        mark_deleted(h);
+    }
+
     // are there any deleted entities?
     inline bool has_garbage() const { return has_garbage_; }
 
     // io functions that need access to internal details
-    friend void read_pmp(SurfaceMesh&, const std::filesystem::path&);
-    friend void write_pmp(const SurfaceMesh&, const std::filesystem::path&,
+    friend void read_pmp(NonManifoldSurfaceMesh&, const std::filesystem::path&);
+    friend void write_pmp(const NonManifoldSurfaceMesh&, const std::filesystem::path&,
                           const IOFlags&);
 
     // property containers for each entity type and object
@@ -1993,15 +2212,18 @@ private:
     VertexProperty<VertexConnectivity> vconn_;
     HalfedgeProperty<HalfedgeConnectivity> hconn_;
     FaceProperty<FaceConnectivity> fconn_;
+    EdgeProperty<EdgeConnectivity> econn_;
 
     // markers for deleted entities
     VertexProperty<bool> vdeleted_;
     EdgeProperty<bool> edeleted_;
+    HalfedgeProperty<bool> hdeleted_;
     FaceProperty<bool> fdeleted_;
 
     // numbers of deleted entities
     IndexType deleted_vertices_{0};
     IndexType deleted_edges_{0};
+    IndexType deleted_halfedges_{0};
     IndexType deleted_faces_{0};
 
     // indicate garbage present
