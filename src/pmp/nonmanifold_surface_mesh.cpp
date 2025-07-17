@@ -575,7 +575,7 @@ bool NonManifoldSurfaceMesh::is_flip_ok(Edge e) const
     if (v0 == v1) // this is generally a bad sign !!!
         return false;
 
-    if (find_halfedge(v0, v1).is_valid())
+    if (find_edge(v0, v1).is_valid())
         return false;
 
     return true;
@@ -800,7 +800,7 @@ bool NonManifoldSurfaceMesh::remove_edge(Edge e)
 
 void NonManifoldSurfaceMesh::collapse(Halfedge h)
 {
-    std::cout << "collapse " << h << ": " << from_vertex(h) << " -> " << to_vertex(h) << std::endl;
+
     const Edge e = edge(h);
 
     const Vertex vh = to_vertex(h);
@@ -812,8 +812,7 @@ void NonManifoldSurfaceMesh::collapse(Halfedge h)
     std::vector const edge_cache(iter.begin(), iter.end());
     for (const Edge el : edge_cache)
     {
-        if (el == e)
-            continue;
+
         for (auto hl : halfedges(el))
         {
             if (to_vertex(hl) == vo)
@@ -828,6 +827,7 @@ void NonManifoldSurfaceMesh::collapse(Halfedge h)
         }
     }
 
+    //std::vector const halfedge_cache(halfedges(e).begin(), halfedges(e).end());
     for (const Halfedge hl : halfedges(e))
     {
         Halfedge const prev_h = prev_halfedge(hl);
@@ -841,8 +841,7 @@ void NonManifoldSurfaceMesh::collapse(Halfedge h)
         {
             Edge const prev_e = edge(prev_h);
             Edge const next_e = edge(next_h);
-            std::cout << "prev " << prev_h << ": " << from_vertex(prev_h) << " -> " << to_vertex(prev_h) << std::endl;
-            std::cout << "next " << next_h << ": " << from_vertex(next_h) << " -> " << to_vertex(next_h) << std::endl;
+
 
 
             remove_sibling_halfedge(prev_h);
@@ -878,7 +877,6 @@ void NonManifoldSurfaceMesh::collapse(Halfedge h)
         }
         else
         {
-            assert(false);
             set_halfedge(f, next_h);
             set_next_halfedge(prev_h, next_h);
         }
@@ -892,23 +890,35 @@ void NonManifoldSurfaceMesh::collapse(Halfedge h)
     mark_deleted(vo);
     set_halfedge(vo, Halfedge());
 
-    has_garbage_ = true;
-    for (auto ei : edges())
+
+    // Non-elegant solution for triangular holes adjacent to edge
+    for (auto e1 : edges(vh))
     {
-        for (auto e2 : edges())
+        auto vi = vertex(e1, 0) == vh ? vertex(e1, 1) : vertex(e1, 0);
+        for (auto e2 : edges(vi))
         {
-            if (ei == e2)
+            if (e1 == e2)
                 continue;
-            auto hi = halfedge(ei);
-            auto he = halfedge(e2);
-            if ((to_vertex(he) == to_vertex(hi) && from_vertex(he) == from_vertex(hi))
-                || (to_vertex(he) == from_vertex(hi) && from_vertex(he) == to_vertex(hi)))
+            auto h1 = halfedge(e1);
+            auto h2 = halfedge(e2);
+            if ((to_vertex(h2) == to_vertex(h1) && from_vertex(h2) == from_vertex(h1))
+                || (to_vertex(h2) == from_vertex(h1) && from_vertex(h2) == to_vertex(h1)))
             {
-                std::cout << "Edge " << ei << "(" << hi << ": " << from_vertex(hi) << " -> " << to_vertex(hi)
-                << ")" << " and " << e2 << "(" << he << ": " << from_vertex(he) << " -> " << to_vertex(he) << ")" << " have same vertices" << std::endl;
+                // merge sibling lists
+                auto const hedge_cache = std::vector(halfedges(e2).begin(), halfedges(e2).end());
+                for (const auto next_hedge : hedge_cache)
+                {
+                    set_edge(next_hedge, e1);
+                    insert_sibling(h1, next_hedge);
+                }
+                mark_deleted(e2);
+                set_halfedge(e2, Halfedge());
+                break;
             }
         }
     }
+
+    has_garbage_ = true;
 }
 
 void NonManifoldSurfaceMesh::delete_vertex(Vertex v)

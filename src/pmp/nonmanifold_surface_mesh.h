@@ -412,6 +412,7 @@ public:
             if (mesh_)
                 halfedge_ = mesh_->halfedge(v);
             first_ = halfedge_;
+            visited_.emplace((*(*this)).idx());
         }
 
         //! are two circulators equal?
@@ -617,6 +618,7 @@ public:
             if (mesh_)
                 halfedge_ = mesh_->halfedge(v);
             first_ = halfedge_;
+            visited_.emplace((*(*this)).idx());
         }
 
         //! are two circulators equal?
@@ -996,7 +998,7 @@ public:
             : mesh_(m)
         {
             if (mesh_)
-                halfedge_ = mesh_->halfedge(e, 0);
+                halfedge_ = mesh_->halfedge(e);
         }
 
         //! are two circulators equal?
