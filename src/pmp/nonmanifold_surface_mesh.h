@@ -27,10 +27,8 @@ struct IOFlags;
 //! \addtogroup core
 //!@{
 
-//! \brief A class for representing polygon surface meshes.
-//! \details This class implements a half-edge data structure for surface meshes.
-//! See \cite sieger_2011_design for details on the design and implementation.
-//! \note This class only supports 2-manifold surface meshes with boundary.
+//! \brief A class for representing polygon non-manifold surface meshes.
+//! \details This class implements a half-edge data structure for non-manifold surface meshes.
 class NonManifoldSurfaceMesh
 {
 public:
@@ -392,7 +390,7 @@ public:
     //! \name Circulator Types
     //!@{
 
-    //! this class circulates through all one-ring neighbors of a vertex.
+    //! this class circulates through all neighbors of a vertex.
     //! it also acts as a container-concept for C++11 range-based for loops.
     //! \sa HalfedgeAroundVertexCirculator, vertices(Vertex)
     class VertexAroundVertexCirculator
@@ -433,12 +431,12 @@ public:
         VertexAroundVertexCirculator& operator++()
         {
             assert(mesh_);
-            if (loaded)
+            if (loaded_)
             {
                 halfedge_ = cache_;
-                halfedge_ = mesh_->hconn_[halfedge_].next_neighbor_from_;
+                halfedge_ = mesh_->next_neighbor_halfedge(halfedge_);
                 cache_ = Halfedge();
-                loaded = false;
+                loaded_ = false;
             }
             else
             {
@@ -446,11 +444,11 @@ public:
                 {
                     cache_ = halfedge_;
                     halfedge_ = mesh_->prev_halfedge(halfedge_);
-                    loaded = true;
+                    loaded_ = true;
                 }
                 else
                 {
-                    halfedge_ = mesh_->hconn_[halfedge_].next_neighbor_from_;
+                    halfedge_ = mesh_->next_neighbor_halfedge(halfedge_);
                 }
             }
             if (halfedge_ != first_ && visited_.contains((*(*this)).idx()))
@@ -500,7 +498,7 @@ public:
         const NonManifoldSurfaceMesh* mesh_;
         Halfedge halfedge_, first_, cache_;
         bool is_active_{true}; // helper for C++11 range-based for-loops
-        bool loaded{false};
+        bool loaded_{false};
         std::unordered_set<int> visited_;
 
     };
@@ -544,7 +542,7 @@ public:
         HalfedgeAroundVertexCirculator& operator++()
         {
             assert(mesh_);
-            halfedge_ = mesh_->hconn_[halfedge_].next_neighbor_from_;
+            halfedge_ = mesh_->next_neighbor_halfedge(halfedge_);
             is_active_ = true;
             return *this;
         }
@@ -561,7 +559,7 @@ public:
         HalfedgeAroundVertexCirculator& operator--()
         {
             assert(mesh_);
-            halfedge_ = mesh_->hconn_[halfedge_].prev_neighbor_from_;
+            halfedge_ = mesh_->prev_neighbor_halfedge(halfedge_);
             return *this;
         }
 
@@ -639,12 +637,12 @@ public:
         EdgeAroundVertexCirculator& operator++()
         {
             assert(mesh_);
-            if (loaded)
+            if (loaded_)
             {
                 halfedge_ = cache_;
-                halfedge_ = mesh_->hconn_[halfedge_].next_neighbor_from_;
+                halfedge_ = mesh_->next_neighbor_halfedge(halfedge_);
                 cache_ = Halfedge();
-                loaded = false;
+                loaded_ = false;
             }
             else
             {
@@ -652,11 +650,11 @@ public:
                 {
                     cache_ = halfedge_;
                     halfedge_ = mesh_->prev_halfedge(halfedge_);
-                    loaded = true;
+                    loaded_ = true;
                 }
                 else
                 {
-                    halfedge_ = mesh_->hconn_[halfedge_].next_neighbor_from_;
+                    halfedge_ = mesh_->next_neighbor_halfedge(halfedge_);
                 }
             }
             if (halfedge_ != first_ && visited_.contains((*(*this)).idx()))
@@ -699,7 +697,7 @@ public:
         const NonManifoldSurfaceMesh* mesh_;
         Halfedge halfedge_, first_, cache_;
         bool is_active_{true}; // helper for C++11 range-based for-loops
-        bool loaded{false};
+        bool loaded_{false};
         std::unordered_set<int> visited_;
     };
 
@@ -744,7 +742,7 @@ public:
         FaceAroundVertexCirculator& operator++()
         {
             assert(mesh_ && halfedge_.is_valid());
-            halfedge_ = mesh_->hconn_[halfedge_].next_neighbor_from_;
+            halfedge_ = mesh_->next_neighbor_halfedge(halfedge_);
             is_active_ = true;
             return *this;
         }
@@ -761,7 +759,7 @@ public:
         FaceAroundVertexCirculator& operator--()
         {
             assert(mesh_ && halfedge_.is_valid());
-            halfedge_ = mesh_->hconn_[halfedge_].prev_neighbor_from_;
+            halfedge_ = mesh_->prev_neighbor_halfedge(halfedge_);
             return *this;
         }
 
@@ -803,9 +801,9 @@ public:
     };
 
 
-    //! this class circulates through all incident faces of a vertex.
+    //! this class circulates through all incident faces of an edge.
     //! it also acts as a container-concept for C++11 range-based for loops.
-    //! \sa VertexAroundVertexCirculator, HalfedgeAroundVertexCirculator, faces(Vertex)
+    //! \sa EdgeAroundVertexCirculator, HalfedgeAroundEdgeCirculator, faces(Edge)
     class FaceAroundEdgeCirculator
     {
     public:
@@ -815,14 +813,14 @@ public:
         using pointer = Face*;
         using iterator_category = std::bidirectional_iterator_tag;
 
-        //! construct with mesh and vertex (vertex should not be isolated!)
+        //! construct with mesh and edge
         FaceAroundEdgeCirculator(const NonManifoldSurfaceMesh* m = nullptr,
                                    Edge e = Edge())
             : mesh_(m)
         {
             if (mesh_)
             {
-                halfedge_ = mesh_->halfedge(e, 0);
+                halfedge_ = mesh_->halfedge(e);
             }
         }
 
@@ -864,7 +862,7 @@ public:
             return mesh_->face(halfedge_);
         }
 
-        //! cast to bool: true if vertex is not isolated
+        //! cast to bool: true if halfedge valid
         operator bool() const { return halfedge_.is_valid(); }
 
         // helper for C++11 range-based for-loops
@@ -980,9 +978,9 @@ public:
         bool is_active_{true}; // helper for C++11 range-based for-loops
     };
 
-    //! this class circulates through the vertices of a face.
+    //! this class circulates through the halfedges of an edge.
     //! it also acts as a container-concept for C++11 range-based for loops.
-    //! \sa HalfedgeAroundFaceCirculator, vertices(Face)
+    //! \sa FaceAroundEdgeCirculator, halfedges(Edge)
     class HalfedgeAroundEdgeCirculator
     {
     public:
@@ -1049,7 +1047,7 @@ public:
             return tmp;
         }
 
-        //! get the vertex the circulator refers to
+        //! get the halfedge the circulator refers to
         Halfedge operator*() const
         {
             assert(mesh_ && halfedge_.is_valid());
@@ -1265,6 +1263,9 @@ public:
     bool is_deleted(Face f) const { return fdeleted_[f]; }
 
 
+    //! mark vertex \p v as deleted
+    //! \return whether vertex \p v was already deleted
+    //! \sa garbage_collection()
     bool mark_deleted(Vertex v)
     {
         if (!vdeleted_[v])
@@ -1276,6 +1277,9 @@ public:
         return false;
     }
 
+    //! mark halfedge \p h as deleted
+    //! \return whether halfedge \p h was already deleted
+    //! \sa garbage_collection()
     bool mark_deleted(Halfedge h)
     {
         if (!hdeleted_[h])
@@ -1287,6 +1291,9 @@ public:
         return false;
     }
 
+    //! mark edge \p e as deleted
+    //! \return whether edge \p e was already deleted
+    //! \sa garbage_collection()
     bool mark_deleted(Edge e)
     {
         if (!edeleted_[e])
@@ -1298,6 +1305,9 @@ public:
         return false;
     }
 
+    //! mark face \p f as deleted
+    //! \return whether face \p f was already deleted
+    //! \sa garbage_collection()
     bool mark_deleted(Face f)
     {
         if (!fdeleted_[f])
@@ -1326,19 +1336,55 @@ public:
     //!@{
 
     //! \return an outgoing halfedge of vertex \p v.
-    //! if \p v is a boundary vertex this will be a boundary halfedge.
     Halfedge halfedge(Vertex v) const { return vconn_[v].halfedge_; }
+
+    //! \return a halfedge of edge \p e
+    Halfedge halfedge(Edge e) const { return econn_[e].halfedge_; }
+
+    //! \return a halfedge of face \p f
+    Halfedge halfedge(Face f) const { return fconn_[f].halfedge_; }
 
     //! set the outgoing halfedge of vertex \p v to \p h
     void set_halfedge(Vertex v, Halfedge h) { vconn_[v].halfedge_ = h; }
 
+    //! set the sibling halfedge of edge \p e to \p h
     void set_halfedge(Edge e, Halfedge h) { econn_[e].halfedge_ = h; }
 
-    //! \return whether \p v is a boundary vertex
+    //! sets the halfedge of face \p f to \p h
+    void set_halfedge(Face f, Halfedge h) { fconn_[f].halfedge_ = h; }
+
+
+    //! \return whether \p v is a boundary vertex, i.e., any adjacent edge lies on boundary
     bool is_boundary(Vertex v) const
     {
-        const Halfedge h(halfedge(v));
-        return (!(h.is_valid() && face(h).is_valid()));
+        for (Edge const e : edges(v))
+        {
+            if (is_boundary(e))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    //! \return whether \p e is a boundary edge, i.e., it has one adjacent halfedge
+    bool is_boundary(Edge e) const
+    {
+        return next_sibling_halfedge(econn_[e].halfedge_) == econn_[e].halfedge_;
+    }
+
+    //! \return whether \p f is a boundary face, i.e., it one of its edges is a boundary edge
+    bool is_boundary(Face f) const
+    {
+        Halfedge h = halfedge(f);
+        const Halfedge hh = h;
+        do
+        {
+            if (is_boundary(edge(h)))
+                return true;
+            h = next_halfedge(h);
+        } while (h != hh);
+        return false;
     }
 
     //! \return whether \p v is isolated, i.e., not incident to any edge
@@ -1350,15 +1396,39 @@ public:
         // The vertex is non-manifold if more than one gap exists, i.e.
         // more than one outgoing boundary halfedge.
         int n(0);
-        auto hit = halfedges(v);
-        auto hend = hit;
-        if (hit)
-            do
+        for (Halfedge const h : halfedges(v))
+        {
+            if (is_boundary(edge(h)))
             {
-                if (is_boundary(edge(*hit)))
-                    ++n;
-            } while (++hit != hend);
+                ++n;
+            }
+        }
         return n < 2;
+    }
+
+    //! \return whether \p e is a manifold edge (incident to at most 2 faces)
+    bool is_manifold(Edge e) const
+    {
+        auto h = halfedge(e);
+        return next_sibling_halfedge(h) == h || next_sibling_halfedge(next_sibling_halfedge(h)) == h;
+    }
+
+    //! \return whether \p e is a correctly oriented edge (i.e., manifold and
+    //! has two opposing halfedges or lies on the boundary)
+    bool is_oriented(Edge e) const
+    {
+        auto h = halfedge(e);
+        auto next_h = next_sibling_halfedge(h);
+        if (next_h == h) return true; // Boundary
+        if (next_sibling_halfedge(next_h) != h) return false; // Non-Manifold
+        return !have_same_orientation(next_h, h); // Opposing orientation
+    }
+
+    //! \return whether the two sibling halfedges \p h0 and \p h1 have the
+    //! same orientation (i.e., the same to_vertex)
+    bool have_same_orientation(const Halfedge h0, const Halfedge h1) const
+    {
+        return hconn_[h0].to_vertex_ == hconn_[h1].to_vertex_;
     }
 
     //! \return the vertex the halfedge \p h points to
@@ -1368,14 +1438,13 @@ public:
     inline Vertex from_vertex(Halfedge h) const { return hconn_[hconn_[h].prev_halfedge_].to_vertex_; }
 
     //! sets the vertex the halfedge \p h points to to \p v
-    inline void set_to_vertex(Halfedge h, Vertex v) { hconn_[h].to_vertex_ = v; }
-
+    inline void set_vertex(Halfedge h, Vertex v) { hconn_[h].to_vertex_ = v; }
 
     //! \return the face incident to halfedge \p h
-    Face face(Halfedge h) const { return hconn_[h].face_; }
+    inline Face face(Halfedge h) const { return hconn_[h].face_; }
 
     //! sets the incident face to halfedge \p h to \p f
-    void set_face(Halfedge h, Face f) { hconn_[h].face_ = f; }
+    inline void set_face(Halfedge h, Face f) { hconn_[h].face_ = f; }
 
     //! \return the next halfedge within the incident face
     inline Halfedge next_halfedge(Halfedge h) const
@@ -1390,6 +1459,12 @@ public:
         hconn_[nh].prev_halfedge_ = h;
     }
 
+    //! \return the previous halfedge within the incident face
+    inline Halfedge prev_halfedge(Halfedge h) const
+    {
+        return hconn_[h].prev_halfedge_;
+    }
+
     //! sets the previous halfedge of \p h and the next halfedge of \p ph to \p nh
     inline void set_prev_halfedge(Halfedge h, Halfedge ph)
     {
@@ -1397,37 +1472,109 @@ public:
         hconn_[ph].next_halfedge_ = h;
     }
 
-    //! \return the previous halfedge within the incident face
-    inline Halfedge prev_halfedge(Halfedge h) const
-    {
-        return hconn_[h].prev_halfedge_;
-    }
-
-    //! \return the opposite halfedge of \p h
+    //! \return the next sibling halfedge of \p h
     inline Halfedge next_sibling_halfedge(Halfedge h) const
     {
         return hconn_[h].next_sibling_;
     }
+
+    //! sets the next sibling halfedge of \p h and the previous sibling halfedge of \p ph to \p nh
+    inline void set_next_sibling_halfedge(Halfedge h, Halfedge ph)
+    {
+        hconn_[h].next_sibling_ = ph;
+        hconn_[ph].prev_sibling_ = h;
+    }
+
+    //! \return the previous sibling halfedge of \p h
     inline Halfedge prev_sibling_halfedge(Halfedge h) const
     {
         return hconn_[h].prev_sibling_;
     }
 
+    //! sets the previous sibling halfedge of \p h and the next sibling halfedge of \p ph to \p nh
+    inline void set_prev_sibling_halfedge(Halfedge h, Halfedge ph)
+    {
+        hconn_[h].prev_sibling_ = ph;
+        hconn_[ph].next_sibling_ = h;
+    }
+
+    //! Insert \p h_sibling into doubly linked sibling list after \p h
+    inline void insert_sibling(Halfedge h, Halfedge h_sibling)
+    {
+        if (!h.is_valid())
+        {
+            set_next_sibling_halfedge(h_sibling, h_sibling);
+            return;
+        }
+        set_next_sibling_halfedge(h_sibling, next_sibling_halfedge(h));
+        set_next_sibling_halfedge(h, h_sibling);
+    }
+
+    //! \return the next sibling halfedge of \p h with opposite direction
+    //! or an empty halfedge, if there is no opposite halfedge.
     inline Halfedge opposite_halfedge(Halfedge h) const
     {
         Halfedge opp_h = next_sibling_halfedge(h);
-        while (opp_h.is_valid() && opp_h != h && halfedge_sibling_same_orientation(opp_h, h))
+        while (opp_h.is_valid() && opp_h != h && have_same_orientation(opp_h, h))
             opp_h = next_sibling_halfedge(opp_h);
         if (opp_h == h)
             return Halfedge();
         return opp_h;
     }
 
-    //! \return the edge that contains halfedge \p h as one of its two
+    //! \return the next neighboring halfedge of \p h
+    inline Halfedge next_neighbor_halfedge(Halfedge h) const
+    {
+        return hconn_[h].next_neighbor_from_;
+    }
+
+    //! sets the next neighbor halfedge of \p h and the previous neighbor halfedge of \p ph to \p nh
+    inline void set_next_neighbor_halfedge(Halfedge h, Halfedge ph)
+    {
+        hconn_[h].next_neighbor_from_ = ph;
+        hconn_[ph].prev_neighbor_from_ = h;
+    }
+
+    //! \return the previous neighboring halfedge of \p h
+    inline Halfedge prev_neighbor_halfedge(Halfedge h) const
+    {
+        return hconn_[h].prev_neighbor_from_;
+    }
+
+    //! sets the previous neighbor halfedge of \p h and the next neighbor halfedge of \p ph to \p nh
+    inline void set_prev_neighbor_halfedge(Halfedge h, Halfedge ph)
+    {
+        hconn_[h].prev_neighbor_from_ = ph;
+        hconn_[ph].next_neighbor_from_ = h;
+    }
+
+    //! Insert \p new_h into doubly linked neighbor list after \p h
+    //! Remove \p new_h from previous neighbor list
+    inline void insert_neighbor_halfedge(Halfedge h, Halfedge new_h)
+    {
+        if (!h.is_valid() || !new_h.is_valid())
+            return;
+        remove_halfedge_from_neighbors(new_h);
+        const Halfedge next_neighbor = next_neighbor_halfedge(h);
+        if (next_neighbor.is_valid())
+        {
+            set_next_neighbor_halfedge(new_h, next_neighbor);
+        }
+        else
+        {
+            set_next_neighbor_halfedge(new_h, h);
+        }
+        set_next_neighbor_halfedge(h, new_h);
+    }
+
+    //! \return the edge that contains halfedge \p h as one of its sibling
     //! halfedges.
     inline Edge edge(Halfedge h) const { return hconn_[h].edge_; }
 
-    //! \return the \p i'th halfedge of edge \p e. \p i has to be 0 or 1.
+    //! sets the edge of halfedge \p h to \p e
+    inline void set_edge(Halfedge h, Edge e) { hconn_[h].edge_ = e; }
+
+    //! \return the \p i'th halfedge of edge \p e.
     inline Halfedge halfedge(Edge e, unsigned int i) const
     {
         auto h = econn_[e].halfedge_;
@@ -1440,46 +1587,14 @@ public:
     inline Vertex vertex(Edge e, unsigned int i) const
     {
         assert(i <= 1);
-        return (i == 0) ? from_vertex(halfedge(e, 0)) : to_vertex(halfedge(e, 0));
+        return (i == 0) ? from_vertex(halfedge(e)) : to_vertex(halfedge(e));
     }
 
-    //! \return the face incident to the \p i'th halfedge of edge \p e. \p i has to be 0 or 1.
-    Face face(Edge e, unsigned int i) const
+    //! \return the face incident to the \p i'th halfedge of edge \p e.
+    inline Face face(Edge e, unsigned int i) const
     {
         return face(halfedge(e, i));
     }
-
-    //! \return whether \p e is a boundary edge, i.e., if one of its
-    //! halfedges is a boundary halfedge.
-    bool is_boundary(Edge e) const
-    {
-        return next_sibling_halfedge(econn_[e].halfedge_) == econn_[e].halfedge_;
-    }
-
-    //! \return a halfedge of face \p f
-    Halfedge halfedge(Face f) const { return fconn_[f].halfedge_; }
-
-    //! \return a halfedge of edge \p e
-    Halfedge halfedge(Edge e) const { return econn_[e].halfedge_; }
-
-    //! sets the halfedge of face \p f to \p h
-    void set_halfedge(Face f, Halfedge h) { fconn_[f].halfedge_ = h; }
-
-    //! \return whether \p f is a boundary face, i.e., it one of its edges is a boundary edge.
-    bool is_boundary(Face f) const
-    {
-        Halfedge h = halfedge(f);
-        const Halfedge hh = h;
-        do
-        {
-            if (is_boundary(edge(h)))
-                return true;
-            h = next_halfedge(h);
-        } while (h != hh);
-        return false;
-    }
-
-    void set_edge(Halfedge h, Edge e) { hconn_[h].edge_ = e; }
 
     //!@}
     //! \name Property handling
@@ -1788,7 +1903,7 @@ public:
         return HalfedgeAroundFaceCirculator(this, f);
     }
 
-    //! \return circulator for halfedges of face \p f
+    //! \return circulator for halfedges of edge \p e
     HalfedgeAroundEdgeCirculator halfedges(Edge e) const
     {
         return HalfedgeAroundEdgeCirculator(this, e);
@@ -1806,7 +1921,7 @@ public:
     //! \sa insert_vertex(Halfedge, Vertex)
     Halfedge insert_vertex(Edge e, const Point& p)
     {
-        return insert_vertex(halfedge(e, 0), add_vertex(p));
+        return insert_vertex(halfedge(e), add_vertex(p));
     }
 
     //! Subdivide the edge \p e = (v0,v1) by splitting it into the two edge
@@ -1816,7 +1931,7 @@ public:
     //! insert_vertex(Halfedge, Vertex)
     Halfedge insert_vertex(Edge e, Vertex v)
     {
-        return insert_vertex(halfedge(e, 0), v);
+        return insert_vertex(halfedge(e), v);
     }
 
     //! Subdivide the halfedge \p h = (v0,v1) by splitting it into the two halfedges
@@ -1841,14 +1956,35 @@ public:
     //! each face, and therefore is not very efficient.
     bool is_quad_mesh() const;
 
+    //! \return whether this mesh is manifold
+    bool is_manifold() const
+    {
+        for (Edge const e : edges())
+        {
+            if (!is_manifold(e))
+                return false;
+        }
+        return true;
+    }
+
+    //! \return whether this mesh is consistently oriented (i.e., each (half-)edge
+    //! is manifold and has an opposite halfedge or lies on the boundary)
+    bool is_oriented() const
+    {
+        for (Edge const e : edges())
+        {
+            if (!is_oriented(e))
+                return false;
+        }
+        return true;
+    }
+
     //! \return whether collapsing the halfedge \p v0v1 is topologically legal.
     //! \attention This function is only valid for triangle meshes.
     bool is_collapse_ok(Halfedge v0v1) const;
 
     //! Collapse the halfedge \p h by moving its start vertex into its target
-    //! vertex. For non-boundary halfedges this function removes one vertex, three
-    //! edges, and two faces. For boundary halfedges it removes one vertex, two
-    //! edges and one face.
+    //! vertex.
     //! \attention This function is only valid for triangle meshes.
     //! \attention Halfedge collapses might lead to invalid faces. Call
     //! is_collapse_ok(Halfedge) to be sure the collapse is legal.
@@ -1859,8 +1995,8 @@ public:
     //! \return whether removing the edge \p e is topologically legal.
     bool is_removal_ok(Edge e) const;
 
-    //! Remove edge and merge its two incident faces into one.
-    //! This operation requires that the edge has two incident faces
+    //! Remove edge and merge its incident faces into one.
+    //! This operation requires that the edge is manifold, has two incident faces,
     //! and that these two are not equal.
     //! \sa is_removal_ok(Edge)
     bool remove_edge(Edge e);
@@ -1882,7 +2018,7 @@ public:
     void split(Face f, Vertex v);
 
     //! Split the edge \p e by first adding point \p p to the mesh and then
-    //! connecting it to the two vertices of the adjacent triangles that are
+    //! connecting it to the vertices of the adjacent triangles that are
     //! opposite to edge \p e. Returns the halfedge pointing to \p p that is
     //! created by splitting the existing edge \p e.
     //!
@@ -1912,7 +2048,7 @@ public:
     //! Flip the edge \p e . Removes the edge \p e and add an edge between the
     //! two vertices opposite to edge \p e of the two incident triangles.
     //! \attention This function is only valid for triangle meshes.
-    //! \attention Flipping an edge may result in a non-manifold mesh, hence check
+    //! \attention Flipping an edge may result in non-manifold geometry, hence check
     //! for yourself whether this operation is allowed or not!
     //! \sa is_flip_ok()
     void flip(Edge e);
@@ -1970,11 +2106,6 @@ public:
         return Vertex(static_cast<IndexType>(vertices_size()) - 1);
     }
 
-    bool halfedge_sibling_same_orientation(const Halfedge h0, const Halfedge h1) const
-    {
-        return hconn_[h0].to_vertex_ == hconn_[h1].to_vertex_;
-    }
-
     //! \brief Allocate a new edge, resize edge and halfedge properties accordingly.
     //! \throw AllocationException in case of failure to allocate a new edge.
     Halfedge new_edge()
@@ -1995,10 +2126,11 @@ public:
         return h0;
     }
 
-    //! \brief Allocate a new edge, resize edge and halfedge properties accordingly.
+    //! \brief Allocate a new edge and halfedge, resize edge and halfedge properties accordingly.
     //! \throw AllocationException in case of failure to allocate a new edge.
     //! \param start starting Vertex of the new edge
     //! \param end end Vertex of the new edge
+    //! \return the newly allocated halfedge
     Halfedge new_edge(Vertex start, Vertex end)
     {
         if (start == end)
@@ -2019,20 +2151,23 @@ public:
         const Edge e(static_cast<IndexType>(edges_size()) - 1);
         const Halfedge h(static_cast<IndexType>(halfedges_size()) - 1);
 
-        hconn_[h].edge_ = e;
+        set_edge(h, e);
 
-        hconn_[h].next_neighbor_from_ = h;
-        hconn_[h].prev_neighbor_from_ = h;
-        hconn_[h].next_sibling_ = h;
-        hconn_[h].prev_sibling_ = h;
+        set_next_neighbor_halfedge(h, h);
+        set_next_sibling_halfedge(h, h);
 
-        econn_[e].halfedge_ = h;
-
-        set_to_vertex(h, end);
+        set_halfedge(e, h);
+        set_vertex(h, end);
 
         return h;
     }
 
+    //! \brief Allocate a new halfedge ontop of an existing edge, resize halfedge properties accordingly.
+    //! \throw AllocationException in case of failure to allocate a new halfedge.
+    //! \throw TopologyException if there is no existing corresponding edge.
+    //! \param start starting Vertex of the new edge
+    //! \param end end Vertex of the new edge
+    //! \return the newly allocated halfedge
     Halfedge new_halfedge(Vertex start, Vertex end)
     {
         assert(start != end);
@@ -2046,36 +2181,21 @@ public:
         hprops_.push_back();
 
         auto e = find_edge(start, end);
+        if (!e.is_valid())
+        {
+            auto what = "Halfedge to be allocated does not belong to an existing edge";
+            throw TopologyException(what);
+        }
         const Halfedge h(static_cast<IndexType>(halfedges_size()) - 1);
 
-        const auto first_h = econn_[e].halfedge_;
-        insert_sibling(first_h, h);
+        insert_sibling(halfedge(e), h);
+        set_next_neighbor_halfedge(h, h);
 
-        hconn_[h].next_neighbor_from_ = h;
-        hconn_[h].prev_neighbor_from_ = h;
-
-        hconn_[h].edge_ = e;
-
-        set_to_vertex(h, end);
+        set_edge(h, e);
+        set_vertex(h, end);
 
 
         return h;
-    }
-
-    // Insert h_sibling into doubly-linked sibling list after h
-    void insert_sibling(Halfedge h, Halfedge h_sibling)
-    {
-        if (!h.is_valid())
-        {
-            hconn_[h_sibling].next_sibling_ = h_sibling;
-            hconn_[h_sibling].prev_sibling_ = h_sibling;
-            return;
-        }
-        auto next = next_sibling_halfedge(h);
-        hconn_[next].prev_sibling_ = h_sibling;
-        hconn_[h_sibling].next_sibling_ = hconn_[h].next_sibling_;
-        hconn_[h].next_sibling_ = h_sibling;
-        hconn_[h_sibling].prev_sibling_ = h;
     }
 
     //! \brief Allocate a new face, resize face properties accordingly.
@@ -2097,98 +2217,67 @@ public:
 private:
     struct VertexConnectivity
     {
-        // an outgoing halfedge per vertex (it will be a boundary halfedge
-        // for boundary vertices)
         Halfedge halfedge_;
     };
 
     struct HalfedgeConnectivity
     {
-        Face face_;              // face incident to halfedge
-        Vertex to_vertex_;          // vertex the halfedge points to
-        Edge edge_;              // edge incident to halfedge
-        Halfedge next_halfedge_; // next halfedge
-        Halfedge prev_halfedge_; // previous halfedge
-        Halfedge prev_sibling_;       // Sibling Halfedge (might be opposing)
-        Halfedge next_sibling_;       // Sibling Halfedge (might be opposing)
-        Halfedge next_neighbor_from_; // next neighbor from vertex
-        Halfedge prev_neighbor_from_; // previous neighbor from vertex
+        Face face_;                     // face incident to halfedge
+        Vertex to_vertex_;              // vertex the halfedge points to
+        Edge edge_;                     // edge incident to halfedge
+        Halfedge next_halfedge_;        // next halfedge
+        Halfedge prev_halfedge_;        // previous halfedge
+        Halfedge prev_sibling_;         // previous sibling halfedge
+        Halfedge next_sibling_;         // next sibling halfedge
+        Halfedge next_neighbor_from_;   // next neighbor from vertex
+        Halfedge prev_neighbor_from_;   // previous neighbor from vertex
     };
 
     struct FaceConnectivity
     {
-        Halfedge halfedge_; // a halfedge that is part of the face
+        Halfedge halfedge_;             // a halfedge that is part of the face
     };
 
     struct EdgeConnectivity
     {
-        Halfedge halfedge_;
+        Halfedge halfedge_;             // a halfedge that is part of the edge
     };
 
-    // make sure that the outgoing halfedge of vertex \p v is a boundary
-    // halfedge if \p v is a boundary vertex.
-    void adjust_outgoing_halfedge(Vertex v);
 
-
+    //! Remove halfedge \p h from neighbor doubly-linked list
     void remove_halfedge_from_neighbors(Halfedge h)
     {
         if (!h.is_valid())
             return;
-        if (hconn_[h].prev_neighbor_from_.is_valid() && hconn_[h].prev_neighbor_from_ != h)
+        auto prev_temp = prev_neighbor_halfedge(h);
+        auto next_temp = next_neighbor_halfedge(h);
+        if (prev_temp.is_valid() && prev_temp != h)
         {
-            auto prev_temp = hconn_[h].prev_neighbor_from_;
-            auto next_temp = hconn_[h].next_neighbor_from_;
-            hconn_[prev_temp].next_neighbor_from_ = next_temp;
-            hconn_[next_temp].prev_neighbor_from_ = prev_temp;
+            set_next_neighbor_halfedge(prev_temp, next_temp);
         }
     }
 
-    void insert_neighbor_halfedge_from(Halfedge h, Halfedge new_h)
-    {
-        if (!h.is_valid() || !new_h.is_valid())
-            return;
-        remove_halfedge_from_neighbors(new_h);
-        if (hconn_[h].prev_neighbor_from_.is_valid())
-        {
-            auto h_prev = hconn_[h].prev_neighbor_from_;
-            hconn_[h_prev].next_neighbor_from_ = new_h;
-            hconn_[new_h].prev_neighbor_from_ = h_prev;
-        }
-        else
-        {
-            hconn_[h].next_neighbor_from_ = new_h;
-            hconn_[new_h].prev_neighbor_from_ = h;
-        }
-        hconn_[new_h].next_neighbor_from_ = h;
-        hconn_[h].prev_neighbor_from_ = new_h;
-    }
-
-    // Helper for halfedge collapse
-    void remove_edge_helper(Halfedge h);
-
-    // Helper for halfedge collapse
-    void remove_loop_helper(Halfedge h);
-
-    // Remove Halfedge from sibling doubly-linked list
-    // Set edge -> halfedge reference if necessary
+    //! Remove halfedge \p h from sibling doubly-linked list
+    //! Set edge -> halfedge reference if necessary
     void remove_sibling_halfedge(Halfedge h)
     {
         auto prev_sib = prev_sibling_halfedge(h);
         auto next_sib = next_sibling_halfedge(h);
-        hconn_[prev_sib].next_sibling_ = next_sib;
-        hconn_[next_sib].prev_sibling_ = prev_sib;
-        if (econn_[edge(h)].halfedge_ == h)
-            econn_[edge(h)].halfedge_ = next_sib;
+        set_next_sibling_halfedge(prev_sib, next_sib);
+        const Edge e = edge(h);
+        if (halfedge(e) == h)
+            set_halfedge(e, next_sib);
     }
 
 
+    //! Remove halfedge \p h from neighbor list, vertex adjacency and mark as deleted
     void remove_halfedge(Halfedge h)
     {
 
         // remove halfedge
         Vertex const v1 = from_vertex(h);
         if (halfedge(v1) == h)
-            set_halfedge(v1, hconn_[h].next_neighbor_from_);
+            set_halfedge(v1, next_neighbor_halfedge(h));
         remove_halfedge_from_neighbors(h);
         mark_deleted(h);
     }

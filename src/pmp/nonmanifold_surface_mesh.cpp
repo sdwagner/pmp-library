@@ -170,7 +170,7 @@ Halfedge NonManifoldSurfaceMesh::find_halfedge(Vertex start, Vertex end) const
         {
             if (to_vertex(h) == end)
                 return h;
-            h = hconn_[h].next_neighbor_from_;
+            h = next_neighbor_halfedge(h);
         } while (h.is_valid() && h != hh);
     }
 
@@ -264,10 +264,7 @@ Face NonManifoldSurfaceMesh::add_face(const std::vector<Vertex>& vertices)
         if (!halfedge(vertices[ii]).is_valid())
             set_halfedge(vertices[ii], halfedges[ii]);
         else
-        {
-
-            insert_neighbor_halfedge_from(halfedge(vertices[ii]), halfedges[ii]);
-        }
+            insert_neighbor_halfedge(halfedge(vertices[ii]), halfedges[ii]);
     }
 
     return f;
@@ -323,13 +320,12 @@ void NonManifoldSurfaceMesh::split(Face f, Vertex v)
 
     set_next_halfedge(hend, hold);
     set_face(hold, f);
-    insert_neighbor_halfedge_from(h, hold);
-    //set_halfedge(to_vertex(hend), hold);
+    insert_neighbor_halfedge(h, hold);
 
     hold = new_halfedge(v, to_vertex(hend));
 
     if (halfedge(v).is_valid())
-        insert_neighbor_halfedge_from(halfedge(v), hold);
+        insert_neighbor_halfedge(halfedge(v), hold);
     else
         set_halfedge(v, hold);
 
@@ -341,7 +337,7 @@ void NonManifoldSurfaceMesh::split(Face f, Vertex v)
         set_halfedge(fnew, h);
 
         const Halfedge hnew = new_edge(to_vertex(h), v);
-        insert_neighbor_halfedge_from(hnext, hnew);
+        insert_neighbor_halfedge(hnext, hnew);
 
         set_next_halfedge(hnew, hold);
         set_next_halfedge(hold, h);
@@ -352,7 +348,7 @@ void NonManifoldSurfaceMesh::split(Face f, Vertex v)
         set_face(h, fnew);
 
         hold = new_halfedge(v, to_vertex(h));
-        insert_neighbor_halfedge_from(halfedge(v), hold);
+        insert_neighbor_halfedge(halfedge(v), hold);
 
         h = hnext;
     }
@@ -366,7 +362,7 @@ void NonManifoldSurfaceMesh::split(Face f, Vertex v)
 Halfedge NonManifoldSurfaceMesh::split(Edge e, Vertex v)
 {
     bool edge_exists = false;
-    const Halfedge h = halfedge(e, 0);
+    const Halfedge h = halfedge(e);
     Halfedge iter_h = h;
     Halfedge new_h;
     const Vertex v1 = to_vertex(iter_h);
@@ -380,12 +376,12 @@ Halfedge NonManifoldSurfaceMesh::split(Edge e, Vertex v)
             if (correct_orient)
             {
                 new_h = new_halfedge(v, v1);
-                insert_neighbor_halfedge_from(halfedge(v), new_h);
+                insert_neighbor_halfedge(halfedge(v), new_h);
             }
             else
             {
                 new_h = new_halfedge(v1, v);
-                insert_neighbor_halfedge_from(halfedge(v1), new_h);
+                insert_neighbor_halfedge(halfedge(v1), new_h);
                 set_halfedge(v1, new_h);
             }
         }
@@ -393,7 +389,7 @@ Halfedge NonManifoldSurfaceMesh::split(Edge e, Vertex v)
         {
             new_h = new_edge(v, v1);
             if (halfedge(v).is_valid())
-                insert_neighbor_halfedge_from(halfedge(v), new_h);
+                insert_neighbor_halfedge(halfedge(v), new_h);
             else
                 set_halfedge(v, new_h);
             edge_exists = true;
@@ -407,13 +403,13 @@ Halfedge NonManifoldSurfaceMesh::split(Edge e, Vertex v)
 
         const Vertex opp_v = to_vertex(next_h);
         const Halfedge split_h1 = new_edge(v, opp_v);
-        insert_neighbor_halfedge_from(halfedge(v), split_h1);
+        insert_neighbor_halfedge(halfedge(v), split_h1);
         const Halfedge split_h2 = new_halfedge(opp_v, v);
-        insert_neighbor_halfedge_from(prev_h, split_h2);
+        insert_neighbor_halfedge(prev_h, split_h2);
 
         if (correct_orient)
         {
-            set_to_vertex(iter_h, v);
+            set_vertex(iter_h, v);
 
             // Relink first triangle
             set_next_halfedge(iter_h, split_h1);
@@ -434,7 +430,7 @@ Halfedge NonManifoldSurfaceMesh::split(Edge e, Vertex v)
         }
         else
         {
-            insert_neighbor_halfedge_from(split_h1, iter_h);
+            insert_neighbor_halfedge(split_h1, iter_h);
 
             // Relink first triangle
             set_next_halfedge(split_h2, iter_h);
@@ -484,26 +480,26 @@ Halfedge NonManifoldSurfaceMesh::insert_vertex(Halfedge h0, Vertex v)
         if (same_orientation)
         {
             if (halfedge(v).is_valid())
-                insert_neighbor_halfedge_from(halfedge(v), new_h);
+                insert_neighbor_halfedge(halfedge(v), new_h);
             else
                 set_halfedge(v, new_h);
             const Halfedge next_h = next_halfedge(iter_h);
             set_next_halfedge(new_h, next_h);
             set_next_halfedge(iter_h, new_h);
 
-            set_to_vertex(iter_h, v);
+            set_vertex(iter_h, v);
         }
         else
         {
             if (halfedge(v1).is_valid())
-                insert_neighbor_halfedge_from(halfedge(v1), new_h);
+                insert_neighbor_halfedge(halfedge(v1), new_h);
             set_halfedge(v1, new_h);
 
             const Halfedge prev_h = prev_halfedge(iter_h);
             set_next_halfedge(prev_h, new_h);
             set_next_halfedge(new_h, iter_h);
 
-            insert_neighbor_halfedge_from(halfedge(v), iter_h);
+            insert_neighbor_halfedge(halfedge(v), iter_h);
         }
 
         iter_h = next_sibling_halfedge(iter_h);
@@ -524,9 +520,9 @@ Halfedge NonManifoldSurfaceMesh::insert_edge(Halfedge h0, Halfedge h1)
     const Halfedge h3 = next_halfedge(h1);
 
     Halfedge h4 = new_edge(v0, v1);
-    insert_neighbor_halfedge_from(h2, h4);
+    insert_neighbor_halfedge(h2, h4);
     Halfedge h5 = new_halfedge(v1, v0);
-    insert_neighbor_halfedge_from(h3, h5);
+    insert_neighbor_halfedge(h3, h5);
 
     const Face f0 = face(h0);
     const Face f1 = new_face();
@@ -589,7 +585,7 @@ void NonManifoldSurfaceMesh::flip(Edge e)
     const Halfedge a0 = halfedge(e, 0);
     const Halfedge b0 = halfedge(e, 1);
 
-    bool same_orientation = halfedge_sibling_same_orientation(a0, b0);
+    const bool same_orientation = have_same_orientation(a0, b0);
 
     const Halfedge a1 = next_halfedge(a0);
     const Halfedge a2 = next_halfedge(a1);
@@ -608,18 +604,18 @@ void NonManifoldSurfaceMesh::flip(Edge e)
 
     if (same_orientation)
     {
-        set_to_vertex(b1, va0);
+        set_vertex(b1, va0);
 
-        set_to_vertex(b2, vb1);
+        set_vertex(b2, vb1);
 
-        set_to_vertex(a0, vb1);
+        set_vertex(a0, vb1);
 
-        set_to_vertex(b0, va1);
+        set_vertex(b0, va1);
 
-        insert_neighbor_halfedge_from(b2, b0);
-        insert_neighbor_halfedge_from(b2, b1);
-        insert_neighbor_halfedge_from(a0, b2);
-        insert_neighbor_halfedge_from(a2, a0);
+        insert_neighbor_halfedge(b2, b0);
+        insert_neighbor_halfedge(b2, b1);
+        insert_neighbor_halfedge(a0, b2);
+        insert_neighbor_halfedge(a2, a0);
 
         set_next_halfedge(a0, b1);
         set_next_halfedge(b1, a1);
@@ -647,12 +643,12 @@ void NonManifoldSurfaceMesh::flip(Edge e)
     else
     {
 
-        set_to_vertex(a0, vb1);
+        set_vertex(a0, vb1);
 
-        set_to_vertex(b0, va1);
+        set_vertex(b0, va1);
 
-        insert_neighbor_halfedge_from(b2, b0);
-        insert_neighbor_halfedge_from(a2, a0);
+        insert_neighbor_halfedge(b2, b0);
+        insert_neighbor_halfedge(a2, a0);
 
         set_next_halfedge(a0, b2);
         set_next_halfedge(b2, a1);
@@ -728,7 +724,7 @@ bool NonManifoldSurfaceMesh::is_removal_ok(Edge e) const
     const Face f0 = face(h0);
     const Face f1 = face(h1);
 
-    if (halfedge_sibling_same_orientation(h0, h1))
+    if (have_same_orientation(h0, h1))
         return false;
 
     // same face?
@@ -816,18 +812,17 @@ void NonManifoldSurfaceMesh::collapse(Halfedge h)
         for (auto hl : halfedges(el))
         {
             if (to_vertex(hl) == vo)
-                set_to_vertex(hl, vh);
+                set_vertex(hl, vh);
             else
             {
                 if (halfedge(vh).is_valid())
-                    insert_neighbor_halfedge_from(halfedge(vh), hl);
+                    insert_neighbor_halfedge(halfedge(vh), hl);
                 else
                     set_halfedge(vh, hl);
             }
         }
     }
 
-    //std::vector const halfedge_cache(halfedges(e).begin(), halfedges(e).end());
     for (const Halfedge hl : halfedges(e))
     {
         Halfedge const prev_h = prev_halfedge(hl);
@@ -938,12 +933,8 @@ void NonManifoldSurfaceMesh::delete_vertex(Vertex v)
         delete_face(f);
 
     // mark v as deleted if not yet done by delete_face()
-    if (!vdeleted_[v])
-    {
-        vdeleted_[v] = true;
-        deleted_vertices_++;
-        has_garbage_ = true;
-    }
+    mark_deleted(v);
+    has_garbage_ = true;
 }
 
 void NonManifoldSurfaceMesh::delete_edge(Edge e)
@@ -966,11 +957,7 @@ void NonManifoldSurfaceMesh::delete_face(Face f)
         return;
 
     // mark face deleted
-    if (!fdeleted_[f])
-    {
-        fdeleted_[f] = true;
-        deleted_faces_++;
-    }
+    mark_deleted(f);
 
     // boundary edges of face f to be deleted
     std::vector<Edge> deleted_edges;
@@ -997,34 +984,21 @@ void NonManifoldSurfaceMesh::delete_face(Face f)
     for (const auto& e : deleted_edges)
     {
 
-        auto h0 = halfedge(e, 0);
+        auto h0 = halfedge(e);
         const auto v1 = from_vertex(h0);
 
-        // mark edge deleted
-        if (!edeleted_[e])
-        {
-            edeleted_[e] = true;
-            deleted_edges_++;
-            if (!hdeleted_[h0])
-            {
-                hdeleted_[h0] = true;
-                deleted_halfedges_++;
-            }
-        }
+        mark_deleted(e);
+        mark_deleted(h0);
 
         // update v1
         if (halfedge(v1) == h0)
         {
-            if (hconn_[h0].next_neighbor_from_ == h0)
+            if (next_neighbor_halfedge(h0) == h0)
             {
-                if (!vdeleted_[v1])
-                {
-                    vdeleted_[v1] = true;
-                    deleted_vertices_++;
-                }
+                mark_deleted(v1);
             }
             else
-                set_halfedge(v1, hconn_[h0].next_neighbor_from_);
+                set_halfedge(v1, next_neighbor_halfedge(h0));
         }
         remove_halfedge_from_neighbors(h0);
     }
@@ -1032,19 +1006,8 @@ void NonManifoldSurfaceMesh::delete_face(Face f)
     for (auto &h : deleted_halfedges)
     {
 
-        // mark halfedge deleted
-        if (!hdeleted_[h])
-        {
-            hdeleted_[h] = true;
-            deleted_halfedges_++;
-        }
         remove_sibling_halfedge(h);
-        const auto v1 = from_vertex(h);
-        if (halfedge(v1) == h)
-        {
-            set_halfedge(v1, hconn_[h].next_neighbor_from_);
-        }
-        remove_halfedge_from_neighbors(h);
+        remove_halfedge(h);
     }
 
     has_garbage_ = true;
@@ -1186,21 +1149,19 @@ void NonManifoldSurfaceMesh::garbage_collection()
     for (size_t i = 0; i < nh; ++i)
     {
         auto h = Halfedge(i);
-        set_to_vertex(h, vmap[to_vertex(h)]);
-        set_next_halfedge(h, hmap[next_halfedge(h)]);
+        set_vertex(h, vmap[to_vertex(h)]);
         set_face(h, fmap[face(h)]);
-        hconn_[h].next_neighbor_from_ = hmap[hconn_[h].next_neighbor_from_];
-        hconn_[h].prev_neighbor_from_ = hmap[hconn_[h].prev_neighbor_from_];
-        hconn_[h].next_sibling_ = hmap[hconn_[h].next_sibling_];
-        hconn_[h].prev_sibling_ = hmap[hconn_[h].prev_sibling_];
-        hconn_[h].edge_ = emap[hconn_[h].edge_];
+        set_edge(h, emap[edge(h)]);
+        set_next_halfedge(h, hmap[next_halfedge(h)]);
+        set_next_neighbor_halfedge(h, hmap[next_neighbor_halfedge(h)]);
+        set_next_sibling_halfedge(h, hmap[next_sibling_halfedge(h)]);
 
     }
 
     for (size_t i = 0; i < ne; ++i)
     {
         const auto e = Edge(i);
-        econn_[e].halfedge_ = hmap[econn_[e].halfedge_];
+        set_halfedge(e, hmap[halfedge(e)]);
 
     }
 
