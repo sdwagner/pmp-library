@@ -24,7 +24,7 @@ size_t detect_features(SurfaceMesh& mesh, Scalar angle)
             const Normal n0 = face_normal(mesh, f0);
             const Normal n1 = face_normal(mesh, f1);
 
-            if (dot(n0, n1) < feature_cosine)
+            if (n0.dot(n1) < feature_cosine)
             {
                 efeature[e] = true;
                 vfeature[mesh.vertex(e, 0)] = true;

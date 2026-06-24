@@ -112,7 +112,7 @@ int count_duplicate_vertices(const SurfaceMesh& mesh, Scalar eps)
                         continue;
 
                     for (auto vv : it->second)
-                        if (sqrnorm(mesh.position(vv) - p) < eps * eps)
+                        if ((mesh.position(vv) - p).squaredNorm() < eps * eps)
                         {
                             duplicate[vv.idx()] = true;
                             duplicate[v.idx()] = true;

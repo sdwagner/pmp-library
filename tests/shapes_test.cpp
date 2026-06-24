@@ -11,7 +11,7 @@ bool vertices_on_sphere(const SurfaceMesh& mesh)
 {
     for (auto v : mesh.vertices())
     {
-        const Scalar n = norm(mesh.position(v));
+        const Scalar n = mesh.position(v).norm();
         if (n < 0.999 || n > 1.001)
         {
             return false;

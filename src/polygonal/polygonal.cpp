@@ -78,7 +78,7 @@ Polygonal::Polygonal(const char* title, int width, int height)
     set_draw_mode("Hidden Line");
 
     color_mode(ColorMode::DarkMode);
-    clear_color_ = vec3(0.17, 0.17, 0.17);
+    clear_color_ = vec3(0.17f, 0.17f, 0.17f);
 
     const auto scale = imgui_scaling();
     ImFontConfig config;
@@ -125,8 +125,8 @@ void Polygonal::load_mesh(const std::filesystem::path& filename)
 
     // update scene center and bounds
     const BoundingBox bb = bounds(mesh_);
-    modelview_matrix_ = mat4::identity();
-    set_scene((vec3)bb.center(), 0.5 * bb.size());
+    modelview_matrix_ = mat4::Identity();
+    set_scene(bb.center().cast<float>(), 0.5 * bb.size());
 
     // compute face & vertex normals, update face indices
     update_mesh();
@@ -151,7 +151,7 @@ void Polygonal::update_mesh()
 {
     // update scene center and radius, but don't update camera view
     const BoundingBox bb = bounds(mesh_);
-    center_ = (vec3)bb.center();
+    center_ = bb.center().cast<float>();
     radius_ = 0.5f * bb.size();
 
     // re-compute face and vertex normals
@@ -328,9 +328,9 @@ void Polygonal::motion(double xpos, double ypos)
                   " Dy: " + std::to_string(delta_[1]) +
                   " Dz: " + std::to_string(delta_[2]);
         for (auto v : handle_)
-            mesh_.position(v) += delta * 0.8;
+            mesh_.position(v) += delta.cast<Scalar>() * 0.8;
         // remember points
-        prev_point_2d_ = ivec2(xpos, ypos);
+        prev_point_2d_ = ivec2((int)xpos, (int)ypos);
         prev_point_ok_ = map_to_sphere(prev_point_2d_, prev_point_3d_);
         renderer_.update_opengl_buffers();
     }
@@ -1298,8 +1298,8 @@ void Polygonal::shrink_selection()
 void Polygonal::reset_scene()
 {
     BoundingBox bb = bounds(mesh_);
-    modelview_matrix_ = mat4::identity();
-    set_scene((vec3)bb.center(), 0.5f * bb.size());
+    modelview_matrix_ = mat4::Identity();
+    set_scene(bb.center().cast<float>(), 0.5f * bb.size());
     renderer_.update_opengl_buffers();
 }
 
@@ -1401,18 +1401,18 @@ Vertex Polygonal::pick_vertex(int x, int y)
     vec4 ray_clip(ndc_x, ndc_y, -1.0f, 1.0f);
 
     // ray in world space
-    mat4 ipm = inverse(projection_matrix_ * modelview_matrix_);
+    mat4 ipm = (projection_matrix_ * modelview_matrix_).inverse();
     vec4 ray_world = ipm * ray_clip;
     ray_world /= ray_world[3];
 
     // camera position in world space (origin transformed by inverse modelview)
-    mat4 imv = inverse(modelview_matrix_);
+    mat4 imv = modelview_matrix_.inverse();
     vec4 cam_pos4 = imv * vec4(0.0f, 0.0f, 0.0f, 1.0f);
     vec3 cam_pos(cam_pos4[0], cam_pos4[1], cam_pos4[2]);
 
     // ray direction
     vec3 ray_dir =
-        normalize(vec3(ray_world[0], ray_world[1], ray_world[2]) - cam_pos);
+        (vec3(ray_world[0], ray_world[1], ray_world[2]) - cam_pos).normalized();
 
     // re-build tree if necessary
     if (tree_ == nullptr)
@@ -1430,8 +1430,8 @@ Vertex Polygonal::pick_vertex(int x, int y)
         float min_dist = std::numeric_limits<float>::max();
         for (auto v : mesh_.vertices(f))
         {
-            vec3 pos = mesh_.position(v);
-            float dist = norm(pos - intersection);
+            vec3 pos = mesh_.position(v).cast<float>();
+            float dist = (pos - intersection).norm();
             if (dist < min_dist)
             {
                 min_dist = dist;
@@ -1482,7 +1482,7 @@ void Polygonal::select_lasso(bool surface)
     const auto pmv = projection_matrix_ * modelview_matrix_;
 
     // camera position in world space
-    mat4 imv = inverse(modelview_matrix_);
+    mat4 imv = modelview_matrix_.inverse();
     vec4 cam_pos4 = imv * vec4(0.0f, 0.0f, 0.0f, 1.0f);
     vec3 cam_pos(cam_pos4[0], cam_pos4[1], cam_pos4[2]);
 
@@ -1515,10 +1515,10 @@ void Polygonal::select_lasso(bool surface)
 
     for (const auto v : mesh_.vertices())
     {
-        const vec3 pos = mesh_.position(v);
+        const vec3 pos = mesh_.position(v).cast<float>();
 
         // project to screen coords
-        const vec4 clip = pmv * vec4(pos, 1.0f);
+        const vec4 clip = pmv * pos.homogeneous();
         if (std::abs(clip[3]) < 1e-6f)
             continue;
         const vec3 ndc = vec3(clip[0], clip[1], clip[2]) / clip[3];
@@ -1538,8 +1538,8 @@ void Polygonal::select_lasso(bool surface)
         if (surface)
         {
             // ray from camera to vertex
-            vec3 ray_dir = normalize(pos - cam_pos);
-            float dist_to_vertex = norm(pos - cam_pos);
+            vec3 ray_dir = (pos - cam_pos).normalized();
+            float dist_to_vertex = (pos - cam_pos).norm();
 
             // intersect with mesh
             auto hit = tree_->intersect(cam_pos, ray_dir);
@@ -1573,14 +1573,13 @@ void Polygonal::select_lasso(bool surface)
 
 vec3 Polygonal::translation(double xpos, double ypos)
 {
-    const ivec2 current_pos(xpos, ypos);
+    const ivec2 current_pos((int)xpos, (int)ypos);
     float w = width();
     float h = height();
-    vec3 translation(0);
 
     if ((current_pos[0] < 0) || (current_pos[0] > w) || (current_pos[1] < 0) ||
         (current_pos[1] > h))
-        return vec3(0);
+        return vec3::Zero();
 
     float radius = 0.5 * bounds(mesh_).size();
 
@@ -1610,7 +1609,7 @@ void Polygonal::start_move()
     // remember start position
     double x, y;
     cursor_pos(x, y);
-    prev_point_2d_ = ivec2(x, y);
+    prev_point_2d_ = ivec2((int)x, (int)y);
     prev_point_ok_ = map_to_sphere(prev_point_2d_, prev_point_3d_);
     move_mode_ = !move_mode_;
 }

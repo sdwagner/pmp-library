@@ -33,7 +33,7 @@ public:
             for (auto v : mesh_.vertices(f))
                 bb += mesh_.position(v);
             face_boxes.push_back(bb);
-            centroids.push_back(bb.center());
+            centroids.push_back(bb.center().cast<float>());
             faces.push_back(f);
         }
         root_ = build(faces, face_boxes, centroids, 0, (int)faces.size());
@@ -83,8 +83,8 @@ private:
         vec3 cmin = centroids[begin], cmax = centroids[begin];
         for (int i = begin + 1; i < end; ++i)
         {
-            cmin = min(cmin, centroids[i]);
-            cmax = max(cmax, centroids[i]);
+            cmin = cmin.cwiseMin(centroids[i]);
+            cmax = cmax.cwiseMax(centroids[i]);
         }
         int axis = 0;
         vec3 diff = cmax - cmin;
@@ -200,24 +200,24 @@ private:
     {
         // Möller-Trumbore triangle intersection tets
         auto moller_trumbore = [&](const dvec3& v0, const dvec3& v1,
-                                   const dvec3& v2, double tmin,
-                                   double tmax) -> std::optional<Hit> {
+                const dvec3& v2, double tmin,
+                double tmax) -> std::optional<Hit> {
             const double eps = 1e-12;
             dvec3 e1 = v1 - v0, e2 = v2 - v0;
-            dvec3 h = cross(dvec3(dir), e2);
-            double a = dot(e1, h);
+            dvec3 h = dir.cast<double>().cross(e2);
+            double a = e1.dot(h);
             if (fabs(a) < eps)
                 return std::nullopt;
             double f_inv = 1.0 / a;
-            dvec3 s = dvec3(orig) - v0;
-            double u = f_inv * dot(s, h);
+            dvec3 s = orig.cast<double>() - v0;
+            double u = f_inv * s.dot(h);
             if (u < 0.0 || u > 1.0)
                 return std::nullopt;
-            dvec3 q = cross(s, e1);
-            double v = f_inv * dot(dvec3(dir), q);
+            dvec3 q = s.cross(e1);
+            double v = f_inv * dir.cast<double>().dot(q);
             if (v < 0.0 || u + v > 1.0)
                 return std::nullopt;
-            double t = f_inv * dot(e2, q);
+            double t = f_inv * e2.dot(q);
             if (t < tmin || t > tmax)
                 return std::nullopt;
             return Hit{f, t};
@@ -227,16 +227,16 @@ private:
         if (mesh_.valence(f) == 3)
         {
             auto fv = mesh_.vertices(f);
-            const dvec3 v0 = dvec3(mesh_.position(*fv));
-            const dvec3 v1 = dvec3(mesh_.position(*++fv));
-            const dvec3 v2 = dvec3(mesh_.position(*++fv));
+            const dvec3 v0 = mesh_.position(*fv).cast<double>();
+            const dvec3 v1 = mesh_.position(*++fv).cast<double>();
+            const dvec3 v2 = mesh_.position(*++fv).cast<double>();
             return moller_trumbore(v0, v1, v2, tmin, tmax);
         }
 
         // face is a polygon, do fan triangulation
         std::vector<dvec3> vertices;
         for (auto v : mesh_.vertices(f))
-            vertices.emplace_back(mesh_.position(v));
+            vertices.emplace_back(mesh_.position(v).cast<double>());
         std::optional<Hit> closest_hit;
         double closest_t = tmax;
         for (size_t i = 1; i + 1 < vertices.size(); ++i)

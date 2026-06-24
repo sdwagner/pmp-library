@@ -411,7 +411,7 @@ void quad_tri_subdivision(SurfaceMesh& mesh, BoundaryHandling boundary_handling)
     }
 
     auto new_pos =
-        mesh.add_vertex_property<Point>("quad_tri:new_position", Point(0));
+        mesh.add_vertex_property<Point>("quad_tri:new_position", Point::Zero());
 
     for (auto v : mesh.vertices())
     {

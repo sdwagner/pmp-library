@@ -28,25 +28,25 @@ inline Scalar clamp_cos(const Scalar v)
 //! Compute the angle between two (un-normalized) vectors.
 inline Scalar angle(const Point& v0, const Point& v1)
 {
-    return atan2(norm(cross(v0, v1)), dot(v0, v1));
+    return atan2(v0.cross(v1).norm(), v0.dot(v1));
 }
 
 //! Compute the sine of angle between two (un-normalized) vectors.
 inline Scalar sin(const Point& v0, const Point& v1)
 {
-    return norm(cross(v0, v1)) / (norm(v0) * norm(v1));
+    return v0.cross(v1).norm() / (v0.norm() * v1.norm());
 }
 
 //! Compute the cosine of angle between two (un-normalized) vectors.
 inline Scalar cos(const Point& v0, const Point& v1)
 {
-    return dot(v0, v1) / (norm(v0) * norm(v1));
+    return v0.dot(v1) / (v0.norm() * v1.norm());
 }
 
 //! Compute the cotangent of angle between two (un-normalized) vectors.
 inline Scalar cotan(const Point& v0, const Point& v1)
 {
-    return clamp_cot(dot(v0, v1) / norm(cross(v0, v1)));
+    return clamp_cot(v0.dot(v1) / v0.cross(v1).norm());
 }
 
 //! Compute the area of a triangle given by three points.

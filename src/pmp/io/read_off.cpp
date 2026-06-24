@@ -309,7 +309,7 @@ void read_off_binary(SurfaceMesh& mesh, FILE* in, const bool has_normals,
         read_binary(in, p[0], swap);
         read_binary(in, p[1], swap);
         read_binary(in, p[2], swap);
-        v = mesh.add_vertex((Point)p);
+        v = mesh.add_vertex(p.cast<Scalar>());
 
         // normal
         if (has_normals)
@@ -317,7 +317,7 @@ void read_off_binary(SurfaceMesh& mesh, FILE* in, const bool has_normals,
             read_binary(in, n[0], swap);
             read_binary(in, n[1], swap);
             read_binary(in, n[2], swap);
-            normals[v] = (Normal)n;
+            normals[v] = n.cast<Scalar>();
         }
 
         // tex coord

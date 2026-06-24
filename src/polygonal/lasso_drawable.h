@@ -6,7 +6,6 @@
 #include <vector>
 #include "pmp/viewers/drawable.h"
 #include "pmp/viewers/shader.h"
-#include "pmp/mat_vec.h"
 
 namespace pmp {
 

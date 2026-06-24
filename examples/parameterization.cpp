@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include <pmp/viewers/mesh_viewer.h>
+#include <pmp/viewers/gl_matrices.h>
 #include <pmp/algorithms/parameterization.h>
 #include <imgui.h>
 
@@ -103,7 +104,7 @@ void Viewer::draw(const std::string& draw_mode)
 
         // setup matrices
         mat4 P = ortho_matrix(0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f);
-        mat4 M = mat4::identity();
+        mat4 M = mat4::Identity();
 
         // draw mesh once more
         renderer_.draw(P, M, "Texture Layout");

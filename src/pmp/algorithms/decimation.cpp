@@ -235,7 +235,7 @@ public: // clang-format off
     // construct from point and normal specifying a plane
     Quadric(const Normal& n, const Point& p)
     {
-        *this = Quadric(n[0], n[1], n[2], -dot(n,p));
+        *this = Quadric(n[0], n[1], n[2], -n.dot(p));
     }
 
     // set all matrix entries to zero
@@ -302,7 +302,7 @@ public:
     // merge *this with nc. *this will then enclose both cones.
     NormalCone& merge(const NormalCone& nc)
     {
-        const Scalar dp = dot(center_normal_, nc.center_normal_);
+        const Scalar dp = center_normal_.dot(nc.center_normal_);
 
         // axes point in same direction
         if (dp > 0.99999)
@@ -595,8 +595,8 @@ void Decimation::initialize(Scalar aspect_ratio, Scalar edge_length,
 
             // if start or end points differ more than seam_threshold
             // the corresponding edge is a texture seam
-            if (norm(texcoords[h1] - texcoords[h0p]) > seam_threshold_ ||
-                norm(texcoords[h0] - texcoords[h1p]) > seam_threshold_)
+            if ((texcoords[h1] - texcoords[h0p]).norm() > seam_threshold_ ||
+                (texcoords[h0] - texcoords[h1p]).norm() > seam_threshold_)
             {
                 texture_seams_[e] = true;
             }
@@ -785,7 +785,7 @@ bool Decimation::is_collapse_legal(const CollapseData& cd)
         {
             if (v != cd.v1 && v != cd.vl && v != cd.vr)
             {
-                if (norm(vpoint_[v] - p1) > edge_length_)
+                if ((vpoint_[v] - p1).norm() > edge_length_)
                     return false;
             }
         }
@@ -801,7 +801,7 @@ bool Decimation::is_collapse_legal(const CollapseData& cd)
             {
                 const Normal n0 = fnormal_[f];
                 const Normal n1 = face_normal(mesh_, f);
-                if (dot(n0, n1) < 0.0)
+                if (n0.dot(n1) < 0.0)
                 {
                     vpoint_[cd.v0] = p0;
                     return false;
@@ -975,23 +975,23 @@ bool Decimation::texcoord_check(Halfedge h)
     {
         if (texture_seams[mesh_.edge(seam2)])
         {
-            auto s1 = normalize(texcoords[seam1] -
-                                texcoords[mesh_.prev_halfedge(seam1)]);
-            auto s2 = normalize(texcoords[seam2] -
-                                texcoords[mesh_.prev_halfedge(seam2)]);
+            auto s1 = (texcoords[seam1] -
+                       texcoords[mesh_.prev_halfedge(seam1)]).normalized();
+            auto s2 = (texcoords[seam2] -
+                       texcoords[mesh_.prev_halfedge(seam2)]).normalized();
 
             // opposite uvs
             const Halfedge o_seam1 = mesh_.opposite_halfedge(seam1);
             const Halfedge o_seam2 = mesh_.opposite_halfedge(seam2);
-            auto o1 = normalize(texcoords[o_seam1] -
-                                texcoords[mesh_.prev_halfedge(o_seam1)]);
-            auto o2 = normalize(texcoords[o_seam2] -
-                                texcoords[mesh_.prev_halfedge(o_seam2)]);
+            auto o1 = (texcoords[o_seam1] -
+                       texcoords[mesh_.prev_halfedge(o_seam1)]).normalized();
+            auto o2 = (texcoords[o_seam2] -
+                       texcoords[mesh_.prev_halfedge(o_seam2)]).normalized();
 
             // check if the angle between the seam edge to be collapsed and the
             // seam edge prolonged is smaller than the allowed deviation
-            if (dot(s1, s2) < seam_angle_deviation_ ||
-                dot(o1, o2) < seam_angle_deviation_)
+            if (s1.dot(s2) < seam_angle_deviation_ ||
+                o1.dot(o2) < seam_angle_deviation_)
             {
                 // angle is too large -> don't collapse this edge
                 return false;
@@ -1164,15 +1164,15 @@ Scalar Decimation::aspect_ratio(Face f) const
     const Point d1 = p1 - p2;
     const Point d2 = p2 - p0;
 
-    const Scalar l0 = sqrnorm(d0);
-    const Scalar l1 = sqrnorm(d1);
-    const Scalar l2 = sqrnorm(d2);
+    const Scalar l0 = d0.squaredNorm();
+    const Scalar l1 = d1.squaredNorm();
+    const Scalar l2 = d2.squaredNorm();
 
     // max squared edge length
     const Scalar l = std::max({l0, l1, l2});
 
     // triangle area
-    const Scalar a = norm(cross(d0, d1));
+    const Scalar a = d0.cross(d1).norm();
 
     return l / a;
 }

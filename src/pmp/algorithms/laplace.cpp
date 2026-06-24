@@ -11,8 +11,8 @@ namespace pmp {
 namespace {
 
 // compute triangle area (in double)
-double triarea(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1,
-               const Eigen::Vector3d& p2)
+double triarea(const dvec3& p0, const dvec3& p1,
+               const dvec3& p2)
 {
     const double double_area = (p1 - p0).cross(p2 - p0).norm();
 
@@ -55,8 +55,8 @@ void compute_virtual_vertex(const DenseMatrix& poly, Eigen::VectorXd& weights)
             double Aij(0.0), bi(0.0);
             for (int k = 0; k < n; ++k)
             {
-                Aij += dot(cross(x[j], d[k]), cross(x[i], d[k]));
-                bi += dot(cross(x[i], d[k]), cross(x[k], d[k]));
+                Aij += x[j].cross(d[k]).dot(x[i].cross(d[k]));
+                bi += x[i].cross(d[k]).dot(x[k].cross(d[k]));
             }
             A(i, j) = A(j, i) = Aij;
             b(i) = bi;
@@ -71,8 +71,8 @@ void compute_virtual_vertex(const DenseMatrix& poly, Eigen::VectorXd& weights)
     weights = A.completeOrthogonalDecomposition().solve(b).topRows(n);
 }
 
-void triangle_mass_matrix(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1,
-                          const Eigen::Vector3d& p2, DiagonalMatrix& Mtri)
+void triangle_mass_matrix(const dvec3& p0, const dvec3& p1,
+                          const dvec3& p2, DiagonalMatrix& Mtri)
 {
     // three vertex positions
     const std::array<dvec3, 3> p = {p0, p1, p2};
@@ -84,7 +84,7 @@ void triangle_mass_matrix(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1,
 
     // compute and check (twice the) triangle area
 #ifndef TFEM
-    const auto tri_area = norm(cross(e[0], e[1]));
+    const auto tri_area = e[0].cross(e[1]).norm();
 #else
     const auto tri_area = 2.0 * triarea(p0, p1, p2);
 #endif
@@ -97,7 +97,7 @@ void triangle_mass_matrix(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1,
     // dot products for each corner (of its two emanating edge vectors)
     std::array<double, 3> d;
     for (int i = 0; i < 3; ++i)
-        d[i] = -dot(e[i], e[(i + 2) % 3]);
+        d[i] = -e[i].dot(e[(i + 2) % 3]);
 
     // cotangents for each corner: cot = cos/sin = dot(A,B)/norm(cross(A,B))
     std::array<double, 3> cot;
@@ -105,7 +105,7 @@ void triangle_mass_matrix(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1,
         cot[i] = d[i] / tri_area;
 
     // compute area for each corner
-    Eigen::Vector3d area;
+    dvec3 area;
     for (int i = 0; i < 3; ++i)
     {
         // angle at corner is obtuse
@@ -121,8 +121,8 @@ void triangle_mass_matrix(const Eigen::Vector3d& p0, const Eigen::Vector3d& p1,
         // no obtuse angles
         else
         {
-            area[i] = 0.125 * (sqrnorm(e[i]) * cot[(i + 2) % 3] +
-                               sqrnorm(e[(i + 2) % 3]) * cot[(i + 1) % 3]);
+            area[i] = 0.125 * (e[i].squaredNorm() * cot[(i + 2) % 3] +
+                               e[(i + 2) % 3].squaredNorm() * cot[(i + 1) % 3]);
         }
     }
     Mtri = area.asDiagonal();
@@ -143,7 +143,7 @@ void polygon_mass_matrix(const DenseMatrix& polygon, DiagonalMatrix& Mpoly)
     // compute position of virtual vertex
     Eigen::VectorXd vweights;
     compute_virtual_vertex(polygon, vweights);
-    const Eigen::Vector3d vvertex = polygon.transpose() * vweights;
+    const dvec3 vvertex = polygon.transpose() * vweights;
 
     // laplace matrix of refined triangle fan
     DenseMatrix Mfan = DenseMatrix::Zero(n + 1, n + 1);
@@ -172,9 +172,9 @@ void polygon_mass_matrix(const DenseMatrix& polygon, DiagonalMatrix& Mpoly)
     Mpoly = PMP.rowwise().sum().asDiagonal();
 }
 
-void triangle_laplace_matrix(const Eigen::Vector3d& p0,
-                             const Eigen::Vector3d& p1,
-                             const Eigen::Vector3d& p2, DenseMatrix& Ltri)
+void triangle_laplace_matrix(const dvec3& p0,
+                             const dvec3& p1,
+                             const dvec3& p2, DenseMatrix& Ltri)
 {
 #ifndef TFEM
     std::array<double, 3> l, l2, cot;
@@ -259,7 +259,7 @@ void polygon_laplace_matrix(const DenseMatrix& polygon, DenseMatrix& Lpoly)
     // compute position of virtual vertex
     Eigen::VectorXd vweights;
     compute_virtual_vertex(polygon, vweights);
-    const Eigen::Vector3d vvertex = polygon.transpose() * vweights;
+    const dvec3 vvertex = polygon.transpose() * vweights;
 
     // laplace matrix of refined triangle fan
     DenseMatrix Lfan = DenseMatrix::Zero(n + 1, n + 1);
@@ -292,12 +292,12 @@ void polygon_laplace_matrix(const DenseMatrix& polygon, DenseMatrix& Lpoly)
     Lpoly = P.transpose() * Lfan * P;
 }
 
-void triangle_gradient_matrix(const Eigen::Vector3d& p0,
-                              const Eigen::Vector3d& p1,
-                              const Eigen::Vector3d& p2, DenseMatrix& G)
+void triangle_gradient_matrix(const dvec3& p0,
+                              const dvec3& p1,
+                              const dvec3& p2, DenseMatrix& G)
 {
     G.resize(3, 3);
-    Eigen::Vector3d n = (p1 - p0).cross(p2 - p0);
+    dvec3 n = (p1 - p0).cross(p2 - p0);
 #ifndef TFEM
     const double double_area = n.norm();
 #else
@@ -324,7 +324,7 @@ void polygon_gradient_matrix(const DenseMatrix& polygon, DenseMatrix& Gpoly)
     // compute position of virtual vertex
     Eigen::VectorXd vweights;
     compute_virtual_vertex(polygon, vweights);
-    const Eigen::Vector3d vvertex = polygon.transpose() * vweights;
+    const dvec3 vvertex = polygon.transpose() * vweights;
 
     DenseMatrix Gfan = DenseMatrix::Zero(3 * n, n + 1);
     DenseMatrix Gtri(3, 3);
@@ -388,13 +388,13 @@ void divmass_matrix(const SurfaceMesh& mesh, DiagonalMatrix& M)
         polygon.resize(n, 3);
         for (int i = 0; i < n; ++i)
         {
-            polygon.row(i) = (Eigen::Vector3d)mesh.position(vertices[i]);
+            polygon.row(i) = mesh.position(vertices[i]).cast<double>();
         }
 
         // compute position of virtual vertex
         Eigen::VectorXd vweights;
         compute_virtual_vertex(polygon, vweights);
-        const Eigen::Vector3d vvertex = polygon.transpose() * vweights;
+        const dvec3 vvertex = polygon.transpose() * vweights;
 
         for (int i = 0; i < n; ++i)
         {
@@ -444,7 +444,7 @@ void mass_matrix(const SurfaceMesh& mesh, DiagonalMatrix& M)
         polygon.resize(n, 3);
         for (int i = 0; i < n; ++i)
         {
-            polygon.row(i) = (Eigen::Vector3d)mesh.position(vertices[i]);
+            polygon.row(i) = mesh.position(vertices[i]).cast<double>();
         }
 
         // setup local mass matrix
@@ -505,7 +505,7 @@ void laplace_matrix(const SurfaceMesh& mesh, SparseMatrix& L, bool clamp)
         polygon.resize(n, 3);
         for (int i = 0; i < n; ++i)
         {
-            polygon.row(i) = (Eigen::Vector3d)mesh.position(vertices[i]);
+            polygon.row(i) = mesh.position(vertices[i]).cast<double>();
         }
 
         // setup local laplace matrix
@@ -585,7 +585,7 @@ void gradient_matrix(const SurfaceMesh& mesh, SparseMatrix& G)
         polygon.resize(n, 3);
         for (int i = 0; i < n; ++i)
         {
-            polygon.row(i) = (Eigen::Vector3d)mesh.position(vertices[i]);
+            polygon.row(i) = mesh.position(vertices[i]).cast<double>();
         }
 
         // setup local element matrix

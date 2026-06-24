@@ -28,7 +28,7 @@ struct CompareVec3
             return (v0[0] < v1[0] - eps_);
     }
 
-    Scalar eps_{std::numeric_limits<Scalar>::min()};
+    float eps_{std::numeric_limits<float>::min()};
 };
 
 void read_stl(SurfaceMesh& mesh, const std::filesystem::path& file)
@@ -116,7 +116,7 @@ void read_stl(SurfaceMesh& mesh, const std::filesystem::path& file)
                 if (it == vertex_map.end())
                 {
                     // No : add vertex and remember idx/vector mapping
-                    v = mesh.add_vertex((Point)p);
+                    v = mesh.add_vertex(p.cast<Scalar>());
                     vertices[i] = v;
                     vertex_map[p] = v;
                 }
@@ -183,7 +183,7 @@ void read_stl(SurfaceMesh& mesh, const std::filesystem::path& file)
                     if (it == vertex_map.end())
                     {
                         // No : add vertex and remember idx/vector mapping
-                        v = mesh.add_vertex((Point)p);
+                        v = mesh.add_vertex(p.cast<Scalar>());
                         vertices[i] = v;
                         vertex_map[p] = v;
                     }

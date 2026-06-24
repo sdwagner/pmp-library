@@ -17,7 +17,7 @@ TEST(NormalsTest, vertex_normals)
     vertex_normals(mesh);
     auto vnormals = mesh.get_vertex_property<Normal>("v:normal");
     auto vn0 = vnormals[Vertex(0)];
-    EXPECT_GT(norm(vn0), 0);
+    EXPECT_GT(vn0.norm(), 0);
 }
 
 TEST(NormalsTest, face_normals)
@@ -26,7 +26,7 @@ TEST(NormalsTest, face_normals)
     face_normals(mesh);
     auto fnormals = mesh.get_face_property<Normal>("f:normal");
     auto fn0 = fnormals[Face(0)];
-    EXPECT_GT(norm(fn0), 0);
+    EXPECT_GT(fn0.norm(), 0);
 }
 
 TEST(NormalsTest, corner_normal)
@@ -34,7 +34,7 @@ TEST(NormalsTest, corner_normal)
     auto mesh = icosahedron();
     auto h = Halfedge(0);
     auto n = corner_normal(mesh, h, (Scalar)std::numbers::pi / 3.0);
-    EXPECT_GT(norm(n), 0);
+    EXPECT_GT(n.norm(), 0);
 }
 
 TEST(NormalsTest, polygonal_face_normal)
@@ -48,5 +48,5 @@ TEST(NormalsTest, polygonal_face_normal)
     vertices[4] = mesh.add_vertex(Point(0, 1, 0));
     auto f0 = mesh.add_face(vertices);
     auto n0 = face_normal(mesh, f0);
-    EXPECT_GT(norm(n0), 0);
+    EXPECT_GT(n0.norm(), 0);
 }

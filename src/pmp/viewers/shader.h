@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "pmp/viewers/gl.h"
-#include "pmp/mat_vec.h"
+#include <pmp/types.h>
 
 namespace pmp {
 

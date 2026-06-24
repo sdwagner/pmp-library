@@ -31,14 +31,14 @@ void write_binary_stl(const SurfaceMesh& mesh,
     auto points = mesh.get_vertex_property<Point>("v:point");
     for (auto f : mesh.faces())
     {
-        auto n = (vec3)normals[f];
+        vec3 n = normals[f].cast<float>();
         ofs.write((char*)&n[0], sizeof(float));
         ofs.write((char*)&n[1], sizeof(float));
         ofs.write((char*)&n[2], sizeof(float));
 
         for (auto v : mesh.vertices(f))
         {
-            auto p = (vec3)points[v];
+            vec3 p = points[v].cast<float>();
             ofs.write((char*)&p[0], sizeof(float));
             ofs.write((char*)&p[1], sizeof(float));
             ofs.write((char*)&p[2], sizeof(float));

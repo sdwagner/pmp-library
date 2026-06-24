@@ -2,103 +2,50 @@
 // Copyright 2017-2021 the Polygon Mesh Processing Library developers.
 // SPDX-License-Identifier: MIT
 
+// TODO: is not really relevant anymore
 #include "gtest/gtest.h"
 
 #include <pmp/surface_mesh.h>
-#include <pmp/mat_vec.h>
 #include <vector>
 
 using namespace pmp;
 
-TEST(EigenTest, construct_from_eigen)
+TEST(EigenTest, point_is_eigen_vector3f)
 {
-    {
-        Eigen::Vector2f eigenVec(1.0f, 2.0f);
-        vec2 pmpVec(eigenVec);
-        EXPECT_EQ(pmpVec[1], 2.0f);
-    }
-    {
-        Eigen::Vector3d eigenVec(1.0, 2.0, 3.0);
-        dvec3 pmpVec(eigenVec);
-        EXPECT_EQ(pmpVec[1], 2.0);
-    }
-    {
-        Eigen::Vector4i eigenVec(1, 2, 3, 4);
-        ivec4 pmpVec(eigenVec);
-        EXPECT_EQ(pmpVec[1], 2);
-    }
-
-    {
-        Eigen::Matrix2d eigenMat;
-        eigenMat << 1.0, 2.0, 3.0, 4.0;
-        mat2 pmpMat(eigenMat);
-        EXPECT_EQ(pmpMat(1, 1), 4.0);
-    }
-    {
-        Eigen::MatrixXd eigenMat(2, 2);
-        eigenMat << 1.0, 2.0, 3.0, 4.0;
-        mat2 pmpMat(eigenMat);
-        EXPECT_EQ(pmpMat(1, 1), 4.0);
-    }
+    Point p(1.0f, 2.0f, 3.0f);
+    EXPECT_EQ(p[0], 1.0f);
+    EXPECT_EQ(p[1], 2.0f);
+    EXPECT_EQ(p[2], 3.0f);
+    EXPECT_FLOAT_EQ(p.norm(), std::sqrt(14.0f));
 }
 
-TEST(EigenTest, assignment_from_eigen)
+TEST(EigenTest, point_eigen_operations)
 {
-    {
-        Eigen::Vector2f eigenVec(1.0f, 2.0f);
-        vec2 pmpVec;
-        pmpVec = eigenVec;
-        EXPECT_EQ(pmpVec[1], 2.0f);
-    }
-    {
-        Eigen::Vector3d eigenVec(1.0, 2.0, 3.0);
-        dvec3 pmpVec;
-        pmpVec = eigenVec;
-        EXPECT_EQ(pmpVec[1], 2.0);
-    }
-    {
-        Eigen::Vector4i eigenVec(1, 2, 3, 4);
-        ivec4 pmpVec;
-        pmpVec = eigenVec;
-        EXPECT_EQ(pmpVec[1], 2);
-    }
-
-    {
-        Eigen::Matrix2d eigenMat;
-        eigenMat << 1.0, 2.0, 3.0, 4.0;
-        mat2 pmpMat;
-        pmpMat = eigenMat;
-        EXPECT_EQ(pmpMat(1, 1), 4.0);
-    }
-    {
-        Eigen::MatrixXd eigenMat(2, 2);
-        eigenMat << 1.0, 2.0, 3.0, 4.0;
-        mat2 pmpMat = eigenMat;
-        EXPECT_EQ(pmpMat(1, 1), 4.0);
-    }
+    Point a(1.0f, 0.0f, 0.0f);
+    Point b(0.0f, 1.0f, 0.0f);
+    EXPECT_FLOAT_EQ(a.dot(b), 0.0f);
+    Point c = a.cross(b);
+    EXPECT_FLOAT_EQ(c[2], 1.0f);
+    EXPECT_FLOAT_EQ((a - b).norm(), std::sqrt(2.0f));
 }
 
-TEST(EigenTest, cast_to_eigen)
+TEST(EigenTest, normal_is_eigen_vector3f)
 {
-    {
-        vec2 pmpVec(1.0f, 2.0f);
-        auto eigenVec = static_cast<Eigen::Vector2f>(pmpVec);
-        EXPECT_EQ(eigenVec[1], 2.0f);
-    }
-    {
-        dvec3 pmpVec(1.0, 2.0, 3.0);
-        auto eigenVec = static_cast<Eigen::Vector3f>(pmpVec);
-        EXPECT_EQ(eigenVec[1], 2.0);
-    }
-    {
-        ivec4 pmpVec(1, 2, 3, 4);
-        auto eigenVec = static_cast<Eigen::Vector4i>(pmpVec);
-        EXPECT_EQ(eigenVec[1], 2);
-    }
+    Normal n(0.0f, 0.0f, 1.0f);
+    EXPECT_FLOAT_EQ(n.norm(), 1.0f);
+    EXPECT_EQ(n, n.normalized());
+}
 
-    {
-        dmat3 pmpMat{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0};
-        auto eigenMat = static_cast<Eigen::Matrix3f>(pmpMat);
-        EXPECT_EQ(eigenMat(1, 1), 5.0);
-    }
+TEST(EigenTest, texcoord_is_eigen_vector2f)
+{
+    TexCoord t(0.5f, 0.5f);
+    EXPECT_EQ(t[0], 0.5f);
+    EXPECT_EQ(t[1], 0.5f);
+}
+
+TEST(EigenTest, assign_from_eigen)
+{
+    vec3 ev(1.0f, 2.0f, 3.0f);
+    Point p = ev.cast<Scalar>();
+    EXPECT_EQ(p[1], 2.0f);
 }

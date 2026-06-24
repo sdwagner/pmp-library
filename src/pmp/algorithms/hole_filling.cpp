@@ -12,6 +12,8 @@
 #include "pmp/algorithms/fairing.h"
 #include "pmp/algorithms/normals.h"
 
+#include <numbers>
+
 namespace pmp {
 namespace {
 
@@ -117,17 +119,17 @@ bool HoleFilling::is_interior_edge(Vertex a, Vertex b) const
 
 Scalar HoleFilling::compute_area(Vertex a, Vertex b, Vertex c) const
 {
-    return sqrnorm(cross(points_[b] - points_[a], points_[c] - points_[a]));
+    return (points_[b] - points_[a]).cross(points_[c] - points_[a]).squaredNorm();
 }
 
 Point HoleFilling::compute_normal(Vertex a, Vertex b, Vertex c) const
 {
-    return normalize(cross(points_[b] - points_[a], points_[c] - points_[a]));
+    return (points_[b] - points_[a]).cross(points_[c] - points_[a]).normalized();
 }
 
 Scalar HoleFilling::compute_angle(const Point& n1, const Point& n2) const
 {
-    return (1.0 - dot(n1, n2));
+    return (1.0 - n1.dot(n2));
 }
 
 void HoleFilling::fill_hole(Halfedge h)
@@ -309,8 +311,8 @@ void HoleFilling::refine()
     Scalar mean_length(0);
     for (int i = 0; i < n; ++i)
     {
-        mean_length += distance(points_[hole_vertex(i)],
-                                points_[hole_vertex((i + 1) % n)]);
+        mean_length += (points_[hole_vertex(i)] -
+                        points_[hole_vertex((i + 1) % n)]).norm();
     }
     mean_length /= (Scalar)n;
 
@@ -346,7 +348,7 @@ void HoleFilling::split_long_edges(const Scalar lmax)
                 const Point& p0 = points_[mesh_.to_vertex(h10)];
                 const Point& p1 = points_[mesh_.to_vertex(h01)];
 
-                if (distance(p0, p1) > lmax)
+                if ((p0 - p1).norm() > lmax)
                 {
                     mesh_.split(e, 0.5 * (p0 + p1));
                     ok = false;
@@ -377,7 +379,7 @@ void HoleFilling::collapse_short_edges(const Scalar _lmin)
                 const Point& p1 = points_[v1];
 
                 // edge too short?
-                if (distance(p0, p1) < _lmin)
+                if ((p0 - p1).norm() < _lmin)
                 {
                     Halfedge h;
                     if (!vlocked_[v0])
@@ -505,7 +507,7 @@ void HoleFilling::relaxation()
         else
             triplets.emplace_back(i, idx[v], c);
 
-        B.row(i) = (Eigen::Vector3d)b;
+        B.row(i) = b.cast<double>();
     }
 
     // solve least squares system
@@ -526,7 +528,7 @@ void HoleFilling::relaxation()
     // copy solution to mesh vertices
     for (int i = 0; i < n; ++i)
     {
-        points_[vertices[i]] = X.row(i);
+        points_[vertices[i]] = X.row(i).cast<Scalar>();
     }
 
     // clean up
@@ -554,8 +556,8 @@ void HoleFilling::remove_caps()
             h = mesh_.next_halfedge(h);
             d = points_[vd = mesh_.to_vertex(h)];
 
-            a0 = dot(normalize(a - b), normalize(c - b));
-            a1 = dot(normalize(a - d), normalize(c - d));
+            a0 = (a - b).normalized().dot((c - b).normalized());
+            a1 = (a - d).normalized().dot((c - d).normalized());
 
             if (a0 < a1)
             {

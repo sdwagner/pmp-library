@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "pmp/mat_vec.h"
+#include <pmp/types.h>
 
 namespace pmp {
 

@@ -152,7 +152,7 @@ Scalar Triangulation::compute_weight(int i, int j, int k) const
     const Point& pb = points_[b];
     const Point& pc = points_[c];
 
-    return sqrnorm(cross(pb - pa, pc - pa));
+    return (pb - pa).cross(pc - pa).squaredNorm();
 }
 
 bool Triangulation::is_edge(Vertex a, Vertex b) const

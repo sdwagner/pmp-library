@@ -56,7 +56,7 @@ void setup_boundary_constraints(SurfaceMesh& mesh)
 
     // compute length of boundary loop
     for (i = 0, length = 0.0; i < n; ++i)
-        length += distance(points[loop[i]], points[loop[(i + 1) % n]]);
+        length += (points[loop[i]] - points[loop[(i + 1) % n]]).norm();
 
     // map length intervals to unit circle intervals
     for (i = 0, l = 0.0; i < n;)
@@ -72,7 +72,7 @@ void setup_boundary_constraints(SurfaceMesh& mesh)
         ++i;
         if (i < n)
         {
-            l += distance(points[loop[i]], points[loop[(i + 1) % n]]);
+            l += (points[loop[i]] - points[loop[(i + 1) % n]]).norm();
         }
     }
 }
@@ -100,7 +100,7 @@ void setup_lscm_boundary(SurfaceMesh& mesh)
     {
         for (auto vv2 : boundary)
         {
-            d = distance(pos[vv1], pos[vv2]);
+            d = (pos[vv1] - pos[vv2]).norm();
             if (d > diam)
             {
                 diam = d;
@@ -150,7 +150,7 @@ void harmonic_parameterization(SurfaceMesh& mesh, bool use_uniform_weights)
     B.setZero();
     for (auto v : mesh.vertices())
         if (mesh.is_boundary(v))
-            B.row(v.idx()) = static_cast<Eigen::Vector2d>(tex[v]);
+            B.row(v.idx()) = tex[v].cast<double>();
 
     // solve system
     auto is_constrained = [&](unsigned int i) {
@@ -161,7 +161,7 @@ void harmonic_parameterization(SurfaceMesh& mesh, bool use_uniform_weights)
     // copy solution
     for (auto v : mesh.vertices())
         if (!mesh.is_boundary(v))
-            tex[v] = X.row(v.idx());
+            tex[v] = X.row(v.idx()).cast<Scalar>();
 }
 
 void lscm_parameterization(SurfaceMesh& mesh)
@@ -196,23 +196,23 @@ void lscm_parameterization(SurfaceMesh& mesh)
         auto hc = *fh_it;
 
         // collect face vertices
-        auto a = (dvec3)pos[mesh.to_vertex(ha)];
-        auto b = (dvec3)pos[mesh.to_vertex(hb)];
-        auto c = (dvec3)pos[mesh.to_vertex(hc)];
+        auto a = pos[mesh.to_vertex(ha)].cast<double>();
+        auto b = pos[mesh.to_vertex(hb)].cast<double>();
+        auto c = pos[mesh.to_vertex(hc)].cast<double>();
 
         // calculate local coordinate system
-        dvec3 z = normalize(cross(normalize(c - b), normalize(a - b)));
-        const dvec3 x = normalize(b - a);
-        const dvec3 y = normalize(cross(z, x));
+        dvec3 z = (c - b).normalized().cross((a - b).normalized()).normalized();
+        const dvec3 x = (b - a).normalized();
+        const dvec3 y = z.cross(x).normalized();
 
         // calculate local vertex coordinates
         dvec2 a2d(0.0, 0.0);
-        dvec2 b2d(norm(b - a), 0.0);
-        dvec2 c2d(dot(c - a, x), dot(c - a, y));
+        dvec2 b2d((b - a).norm(), 0.0);
+        dvec2 c2d((c - a).dot(x), (c - a).dot(y));
 
         // calculate double triangle area
-        z = cross(c - b, a - b);
-        double area = norm(z);
+        z = (c - b).cross(a - b);
+        double area = z.norm();
         if (area)
             area = 1.0 / area;
 
@@ -352,8 +352,8 @@ void lscm_parameterization(SurfaceMesh& mesh)
     TexCoord bbmin(1, 1), bbmax(0, 0);
     for (auto v : mesh.vertices())
     {
-        bbmin = min(bbmin, tex[v]);
-        bbmax = max(bbmax, tex[v]);
+        bbmin = bbmin.cwiseMin(tex[v]);
+        bbmax = bbmax.cwiseMin(tex[v]);
     }
     bbmax -= bbmin;
     const Scalar s = std::max(bbmax[0], bbmax[1]);

@@ -276,12 +276,12 @@ private:
 
     bool is_too_long(Vertex v0, Vertex v1) const
     {
-        return distance(points_[v0], points_[v1]) >
+        return (points_[v0] - points_[v1]).norm() >
                4.0 / 3.0 * std::min(vsizing_[v0], vsizing_[v1]);
     }
     bool is_too_short(Vertex v0, Vertex v1) const
     {
-        return distance(points_[v0], points_[v1]) <
+        return (points_[v0] - points_[v1]).norm() <
                4.0 / 5.0 * std::min(vsizing_[v0], vsizing_[v1]);
     }
 
@@ -947,8 +947,8 @@ void Remeshing::tangential_smoothing(unsigned int iterations)
             {
                 if (vfeature_[v])
                 {
-                    u = Point(0.0);
-                    t = Point(0.0);
+                    u = Point::Zero();
+                    t = Point::Zero();
                     ww = 0;
                     int c = 0;
 
@@ -962,20 +962,20 @@ void Remeshing::tangential_smoothing(unsigned int iterations)
                             b += points_[vv];
                             b *= 0.5;
 
-                            w = distance(points_[v], points_[vv]) /
+                            w = (points_[v] - points_[vv]).norm() /
                                 (0.5 * (vsizing_[v] + vsizing_[vv]));
                             ww += w;
                             u += w * b;
 
                             if (c == 0)
                             {
-                                t += normalize(points_[vv] - points_[v]);
+                                t += (points_[vv] - points_[v]).normalized();
                                 ++c;
                             }
                             else
                             {
                                 ++c;
-                                t -= normalize(points_[vv] - points_[v]);
+                                t -= (points_[vv] - points_[v]).normalized();
                             }
                         }
                     }
@@ -984,8 +984,8 @@ void Remeshing::tangential_smoothing(unsigned int iterations)
 
                     u *= (1.0 / ww);
                     u -= points_[v];
-                    t = normalize(t);
-                    u = t * dot(u, t);
+                    t = t.normalized();
+                    u = t * u.dot(t);
 
                     update[v] = u;
                 }
@@ -1003,7 +1003,7 @@ void Remeshing::tangential_smoothing(unsigned int iterations)
                     u = p - mesh_.position(v);
 
                     n = vnormal_[v];
-                    u -= n * dot(u, n);
+                    u -= n * u.dot(n);
 
                     update[v] = u;
                 }
@@ -1063,8 +1063,8 @@ void Remeshing::remove_caps()
             h = mesh_.next_halfedge(h);
             d = points_[vd = mesh_.to_vertex(h)];
 
-            a0 = dot(normalize(a - b), normalize(c - b));
-            a1 = dot(normalize(a - d), normalize(c - d));
+            a0 = (a - b).normalized().dot((c - b).normalized());
+            a1 = (a - d).normalized().dot((c - d).normalized());
 
             if (a0 < a1)
             {
@@ -1097,8 +1097,9 @@ void Remeshing::remove_caps()
 
 Point Remeshing::minimize_squared_areas(Vertex v)
 {
-    dmat3 A(0);
-    dvec3 b(0), x;
+    dmat3 A = dmat3::Zero();
+    dvec3 b = dvec3::Zero();
+    dvec3 x;
 
     for (auto h : mesh_.halfedges(v))
     {
@@ -1107,10 +1108,10 @@ Point Remeshing::minimize_squared_areas(Vertex v)
         // get edge opposite to vertex v
         auto v0 = mesh_.to_vertex(h);
         auto v1 = mesh_.to_vertex(mesh_.next_halfedge(h));
-        auto p = (dvec3)points_[v0];
-        auto q = (dvec3)points_[v1];
+        auto p = points_[v0].cast<double>();
+        auto q = points_[v1].cast<double>();
         auto d = q - p;
-        auto w = 1.0 / norm(d);
+        auto w = 1.0 / d.norm();
 
         // build squared cross-product-with-d matrix
         dmat3 D;
@@ -1129,7 +1130,7 @@ Point Remeshing::minimize_squared_areas(Vertex v)
     // compute minimizer
     try
     {
-        x = inverse(A) * b;
+        x = A.inverse() * b;
     }
     catch (...)
     {
@@ -1137,12 +1138,12 @@ Point Remeshing::minimize_squared_areas(Vertex v)
         throw SolverException(what);
     }
 
-    return Point(x);
+    return x.cast<Scalar>();
 }
 
 Point Remeshing::weighted_centroid(Vertex v)
 {
-    auto p = Point(0);
+    Point p = Point::Zero();
     double ww = 0;
 
     for (auto h : mesh_.halfedges(v))
@@ -1157,7 +1158,7 @@ Point Remeshing::weighted_centroid(Vertex v)
         b *= (1.0 / 3.0);
 
         double area =
-            norm(cross(points_[v2] - points_[v1], points_[v3] - points_[v1]));
+            (points_[v2] - points_[v1]).cross(points_[v3] - points_[v1]).norm();
 
         // take care of degenerate faces to avoid all zero weights and division
         // by zero later on

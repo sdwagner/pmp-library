@@ -14,8 +14,8 @@ class BoundingBox
 public:
     //! Construct infinite/invalid bounding box.
     BoundingBox()
-        : min_(std::numeric_limits<Scalar>::max()),
-          max_(-std::numeric_limits<Scalar>::max())
+        : min_(Point::Constant(std::numeric_limits<Scalar>::max())),
+          max_(Point::Constant(-std::numeric_limits<Scalar>::max()))
     {
     }
 
@@ -66,7 +66,7 @@ public:
     //! Get the size of the bounding box.
     Scalar size() const
     {
-        return is_empty() ? Scalar(0.0) : distance(max_, min_);
+        return is_empty() ? Scalar(0.0) : (max_ - min_).norm();
     }
 
 private:

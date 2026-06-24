@@ -82,7 +82,7 @@ void MeshProcessingViewer::keyboard(int key, int scancode, int action, int mods)
                 Vertex v1 = mesh_.vertex(e, 1);
                 Point p0 = mesh_.position(v0);
                 Point p1 = mesh_.position(v1);
-                l = distance(p0, p1);
+                l = (p0 - p1).norm();
                 if (l > ll && mesh_.is_removal_ok(e))
                 {
                     ll = l;
@@ -146,7 +146,7 @@ void MeshProcessingViewer::keyboard(int key, int scancode, int action, int mods)
             }
 
             BoundingBox bb = bounds(mesh_);
-            set_scene((vec3)bb.center(), 0.5 * bb.size());
+            set_scene(bb.center().cast<float>(), 0.5 * bb.size());
             set_draw_mode("Hidden Line");
             update_mesh();
             break;

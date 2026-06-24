@@ -341,7 +341,7 @@ void Renderer::update_opengl_buffers()
                 v = mesh_.to_vertex(h);
                 corner_halfedges.push_back(h);
                 corner_vertices.push_back(v);
-                corner_positions.push_back((vec3)vpos[v]);
+                corner_positions.push_back(vpos[v].cast<float>());
 
                 if (crease_angle_ < 1)
                 {
@@ -355,24 +355,24 @@ void Renderer::update_opengl_buffers()
                 {
                     n = corner_normal(mesh_, h, crease_angle_radians);
                 }
-                corner_normals.push_back((vec3)n);
+                corner_normals.push_back(n.cast<float>());
 
                 if (htex)
                 {
-                    corner_texcoords.push_back((vec2)htex[h]);
+                    corner_texcoords.push_back(htex[h].cast<float>());
                 }
                 else if (vtex)
                 {
-                    corner_texcoords.push_back((vec2)vtex[v]);
+                    corner_texcoords.push_back(vtex[v].cast<float>());
                 }
 
                 if (vcolor && use_colors_)
                 {
-                    corner_colors.push_back((vec3)vcolor[v]);
+                    corner_colors.push_back(vcolor[v].cast<float>());
                 }
                 else if (fcolor && use_colors_)
                 {
-                    corner_colors.push_back((vec3)fcolor[f]);
+                    corner_colors.push_back(fcolor[f].cast<float>());
                 }
             }
             assert(corner_vertices.size() >= 3);
@@ -422,7 +422,7 @@ void Renderer::update_opengl_buffers()
         {
             position_array.reserve(mesh_.n_vertices());
             for (auto v : mesh_.vertices())
-                position_array.push_back((vec3)position[v]);
+                position_array.push_back(position[v].cast<float>());
         }
 
         auto normals = mesh_.get_vertex_property<Point>("v:normal");
@@ -430,14 +430,14 @@ void Renderer::update_opengl_buffers()
         {
             normal_array.reserve(mesh_.n_vertices());
             for (auto v : mesh_.vertices())
-                normal_array.push_back((vec3)normals[v]);
+                normal_array.push_back(normals[v].cast<float>());
         }
 
         if (vcolor && use_colors_)
         {
             color_array.reserve(mesh_.n_vertices());
             for (auto v : mesh_.vertices())
-                color_array.push_back((vec3)vcolor[v]);
+                color_array.push_back(vcolor[v].cast<float>());
         }
     }
 
@@ -637,7 +637,8 @@ void Renderer::draw(const mat4& projection_matrix, const mat4& modelview_matrix,
     // setup matrices
     const mat4 mv_matrix = modelview_matrix;
     const mat4 mvp_matrix = projection_matrix * modelview_matrix;
-    const mat3 n_matrix = inverse(transpose(linear_part(mv_matrix)));
+    const mat3 n_matrix =
+        mv_matrix.topLeftCorner<3, 3>().transpose().inverse();
 
     // setup shader
     phong_shader_.use();

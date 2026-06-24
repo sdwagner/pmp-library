@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: MIT
 
 #include "trackball_viewer.h"
+#include "pmp/viewers/gl_matrices.h"
 #include "pmp/stop_watch.h"
 #include <imgui.h>
 #include <algorithm>
@@ -104,7 +105,7 @@ void TrackballViewer::keyboard(int key, int code, int action, int mods)
 void TrackballViewer::display()
 {
     // adjust clipping planes to tightly fit bounding sphere
-    const vec4 mc(center_, 1.0);
+    const vec4 mc = center_.homogeneous();
     vec4 ec = modelview_matrix_ * mc;
     const float z = -ec[2];
     near_ = 0.01 * radius_;
@@ -194,7 +195,7 @@ void TrackballViewer::init()
     glFrontFace(GL_CCW);
 
     // init modelview
-    modelview_matrix_ = mat4::identity();
+    modelview_matrix_ = mat4::Identity();
 
 // turn on multi-sampling to anti-alias lines
 #ifndef __EMSCRIPTEN__
@@ -214,7 +215,7 @@ void TrackballViewer::set_scene(const vec3& center, float radius)
 
 void TrackballViewer::view_all()
 {
-    const vec4 c = vec4(center_, 1.0);
+    const vec4 c = center_.homogeneous();
     vec4 t = modelview_matrix_ * c;
     translate(vec3(-t[0], -t[1], -t[2] - 2.5 * radius_));
 }
@@ -252,7 +253,7 @@ bool TrackballViewer::pick(int x, int y, vec3& result)
         zf = zf * 2.0f - 1.0f;
 
         const mat4 mvp = projection_matrix_ * modelview_matrix_;
-        const mat4 inv = inverse(mvp);
+        const mat4 inv = mvp.inverse();
         vec4 p = inv * vec4(xf, yf, zf, 1.0f);
         p /= p[3];
 
@@ -272,7 +273,7 @@ void TrackballViewer::fly_to(int x, int y)
     if (pick(x, y, p))
     {
         center_ = p;
-        const vec4 c = vec4(center_, 1.0);
+        const vec4 c = center_.homogeneous();
         vec4 t = modelview_matrix_ * c;
         translate(vec3(-t[0], -t[1], -0.5 * t[2]));
     }
@@ -314,8 +315,8 @@ void TrackballViewer::rotation(int x, int y)
 
         if (new_point_ok)
         {
-            const vec3 axis = cross(prev_point_3d_, new_point3d);
-            const float cos_angle = dot(prev_point_3d_, new_point3d);
+            const vec3 axis = prev_point_3d_.cross(new_point3d);
+            const float cos_angle = prev_point_3d_.dot(new_point3d);
 
             if (fabs(cos_angle) < 1.0)
             {
@@ -332,7 +333,7 @@ void TrackballViewer::translation(int x, int y)
     const float dx = x - prev_point_2d_[0];
     const float dy = y - prev_point_2d_[1];
 
-    const vec4 mc = vec4(center_, 1.0);
+    const vec4 mc = center_.homogeneous();
     vec4 ec = modelview_matrix_ * mc;
     const float z = -(ec[2] / ec[3]);
 
@@ -359,7 +360,7 @@ void TrackballViewer::translate(const vec3& t)
 void TrackballViewer::rotate(const vec3& axis, float angle)
 {
     // center in eye coordinates
-    const vec4 mc = vec4(center_, 1.0);
+    const vec4 mc = center_.homogeneous();
     vec4 ec = modelview_matrix_ * mc;
     const vec3 c(ec[0] / ec[3], ec[1] / ec[3], ec[2] / ec[3]);
 
@@ -423,19 +424,21 @@ void TrackballViewer::touchmove(const EmscriptenTouchEvent* event)
 {
     if (num_touches_ == 2 && !ImGui::GetIO().WantCaptureMouse)
     {
-        const vec2 pos0 = high_dpi_scaling() * vec2(event->touches[0].pageX,
-                                                    event->touches[0].pageY);
-        const vec2 pos1 = high_dpi_scaling() * vec2(event->touches[1].pageX,
-                                                    event->touches[1].pageY);
-        const vec2 pos = 0.5 * (pos0 + pos1);
-        const float pinch_distance = distance(pos0, pos1);
+        const vec2 pos0 =
+            high_dpi_scaling() * vec2(event->touches[0].pageX,
+                                                  event->touches[0].pageY);
+        const vec2 pos1 =
+            high_dpi_scaling() * vec2(event->touches[1].pageX,
+                                                  event->touches[1].pageY);
+        const vec2 pos = 0.5f * (pos0 + pos1);
+        const float pinch_distance = (pos0 - pos1).norm();
 
         // pan
         if (prev_point_ok_)
         {
             translation(pos[0], pos[1]);
         }
-        prev_point_2d_ = ivec2(pos[0], pos[1]);
+        prev_point_2d_ = ivec2((int)pos[0], (int)pos[1]);
         prev_point_ok_ = true;
 
         // scale

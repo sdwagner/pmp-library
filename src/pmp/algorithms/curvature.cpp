@@ -145,8 +145,7 @@ void CurvatureAnalyzer::analyze_tensor(unsigned int post_smoothing_steps,
     double l, A, beta, a1, a2, a3;
     dmat3 tensor;
 
-    double eval1, eval2, eval3, kmin, kmax;
-    dvec3 evec1, evec2, evec3;
+    double kmin, kmax;
 
     std::vector<Vertex> neighborhood;
     neighborhood.reserve(15);
@@ -162,7 +161,7 @@ void CurvatureAnalyzer::analyze_tensor(unsigned int post_smoothing_steps,
     // precompute face normals
     for (auto f : mesh_.faces())
     {
-        normal[f] = (dvec3)face_normal(mesh_, f);
+        normal[f] = face_normal(mesh_, f).cast<double>();
     }
 
     // precompute dihedralAngle*edge_length*edge per edge
@@ -176,12 +175,12 @@ void CurvatureAnalyzer::analyze_tensor(unsigned int post_smoothing_steps,
         {
             n0 = normal[f0];
             n1 = normal[f1];
-            ev = (dvec3)mesh_.position(mesh_.to_vertex(h0));
-            ev -= (dvec3)mesh_.position(mesh_.to_vertex(h1));
-            l = norm(ev);
+            ev = mesh_.position(mesh_.to_vertex(h0)).cast<double>();
+            ev -= mesh_.position(mesh_.to_vertex(h1)).cast<double>();
+            l = ev.norm();
             ev /= l;
             l *= 0.5; // only consider half of the edge (matching Voronoi area)
-            angle[e] = atan2(dot(cross(n0, n1), ev), dot(n0, n1));
+            angle[e] = atan2(n0.cross(n1).dot(ev), n0.dot(n1));
             evec[e] = sqrt(l) * ev;
         }
     }
@@ -204,7 +203,7 @@ void CurvatureAnalyzer::analyze_tensor(unsigned int post_smoothing_steps,
             }
 
             A = 0.0;
-            tensor = dmat3(0.0);
+            tensor = dmat3::Zero();
 
             // compute tensor over vertex neighborhood stored in vertices
             for (auto nit : neighborhood)
@@ -230,10 +229,13 @@ void CurvatureAnalyzer::analyze_tensor(unsigned int post_smoothing_steps,
             tensor /= A;
 
             // Eigen-decomposition
-            const bool ok = symmetric_eigendecomposition(
-                tensor, eval1, eval2, eval3, evec1, evec2, evec3);
-            if (ok)
+            Eigen::SelfAdjointEigenSolver<dmat3> solver(tensor);
+            if (solver.info() == Eigen::Success)
             {
+                const double eval1 = solver.eigenvalues()(2);
+                const double eval2 = solver.eigenvalues()(1);
+                const double eval3 = solver.eigenvalues()(0);
+
                 // curvature values:
                 //   normal vector -> eval with smallest absolute value
                 //   evals are sorted in decreasing order

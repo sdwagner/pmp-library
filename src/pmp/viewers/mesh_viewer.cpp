@@ -49,8 +49,8 @@ void MeshViewer::load_mesh(const std::filesystem::path& filename)
 
     // update scene center and bounds
     const BoundingBox bb = bounds(mesh_);
-    modelview_matrix_ = mat4::identity();
-    set_scene((vec3)bb.center(), 0.5 * bb.size());
+    modelview_matrix_ = mat4::Identity();
+    set_scene(bb.center().cast<float>(), 0.5 * bb.size());
 
     // compute face & vertex normals, update face indices
     update_mesh();
@@ -129,7 +129,7 @@ void MeshViewer::update_mesh()
 {
     // update scene center and radius, but don't update camera view
     const BoundingBox bb = bounds(mesh_);
-    center_ = (vec3)bb.center();
+    center_ = bb.center().cast<float>();
     radius_ = 0.5f * bb.size();
 
     // re-compute face and vertex normals
@@ -232,10 +232,10 @@ Vertex MeshViewer::pick_vertex(int x, int y)
 
     if (TrackballViewer::pick(x, y, p))
     {
-        const Point picked_position(p);
+        const Point picked_position(p.cast<Scalar>());
         for (auto v : mesh_.vertices())
         {
-            d = distance(mesh_.position(v), picked_position);
+            d = (mesh_.position(v) - picked_position).norm();
             if (d < dmin)
             {
                 dmin = d;

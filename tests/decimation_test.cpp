@@ -65,8 +65,8 @@ TEST(DecimationTest, simplification_texture_mesh)
 
             // if start or end points differ more than seam_threshold
             // the corresponding edge is a texture seam
-            if (norm(texcoords[h1] - texcoords[h0p]) > seam_threshold ||
-                norm(texcoords[h0] - texcoords[h1p]) > seam_threshold)
+            if ((texcoords[h1] - texcoords[h0p]).norm() > seam_threshold ||
+                (texcoords[h0] - texcoords[h1p]).norm() > seam_threshold)
             {
                 seam_edges++;
                 seams[e] = true;

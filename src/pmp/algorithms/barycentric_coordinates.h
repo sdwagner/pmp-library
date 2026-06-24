@@ -3,22 +3,20 @@
 
 #pragma once
 
-#include "pmp/mat_vec.h"
-
 namespace pmp {
 
-template <typename Scalar>
-const Vector<Scalar, 3> barycentric_coordinates(const Vector<Scalar, 3>& p,
-                                                const Vector<Scalar, 3>& u,
-                                                const Vector<Scalar, 3>& v,
-                                                const Vector<Scalar, 3>& w)
+template <typename s_t>
+const Eigen::Vector3<s_t> barycentric_coordinates(const Eigen::Vector3<s_t>& p,
+                                                const Eigen::Vector3<s_t>& u,
+                                                const Eigen::Vector3<s_t>& v,
+                                                const Eigen::Vector3<s_t>& w)
 {
-    Vector<Scalar, 3> result(Scalar(1.0 / 3.0)); // default: barycenter
+    Eigen::Vector3<s_t> result(Eigen::Vector3<s_t>::Constant(s_t(1.0 / 3.0))); // default: barycenter
 
-    Vector<Scalar, 3> vu = v - u, wu = w - u, pu = p - u;
+    Eigen::Vector3<s_t> vu = v - u, wu = w - u, pu = p - u;
 
     // find largest absolute coordinate of normal
-    Scalar nx = vu[1] * wu[2] - vu[2] * wu[1],
+    s_t nx = vu[1] * wu[2] - vu[2] * wu[1],
            ny = vu[2] * wu[0] - vu[0] * wu[2],
            nz = vu[0] * wu[1] - vu[1] * wu[0], ax = fabs(nx), ay = fabs(ny),
            az = fabs(nz);
@@ -55,11 +53,11 @@ const Vector<Scalar, 3> barycentric_coordinates(const Vector<Scalar, 3>& p,
         {
             if (1.0 + ax != 1.0)
             {
-                result[1] = static_cast<Scalar>(
+                result[1] = static_cast<s_t>(
                     1.0 + (pu[1] * wu[2] - pu[2] * wu[1]) / nx - 1.0);
-                result[2] = static_cast<Scalar>(
+                result[2] = static_cast<s_t>(
                     1.0 + (vu[1] * pu[2] - vu[2] * pu[1]) / nx - 1.0);
-                result[0] = static_cast<Scalar>(1.0 - result[1] - result[2]);
+                result[0] = static_cast<s_t>(1.0 - result[1] - result[2]);
             }
             break;
         }
@@ -68,11 +66,11 @@ const Vector<Scalar, 3> barycentric_coordinates(const Vector<Scalar, 3>& p,
         {
             if (1.0 + ay != 1.0)
             {
-                result[1] = static_cast<Scalar>(
+                result[1] = static_cast<s_t>(
                     1.0 + (pu[2] * wu[0] - pu[0] * wu[2]) / ny - 1.0);
-                result[2] = static_cast<Scalar>(
+                result[2] = static_cast<s_t>(
                     1.0 + (vu[2] * pu[0] - vu[0] * pu[2]) / ny - 1.0);
-                result[0] = static_cast<Scalar>(1.0 - result[1] - result[2]);
+                result[0] = static_cast<s_t>(1.0 - result[1] - result[2]);
             }
             break;
         }
@@ -81,11 +79,11 @@ const Vector<Scalar, 3> barycentric_coordinates(const Vector<Scalar, 3>& p,
         {
             if (1.0 + az != 1.0)
             {
-                result[1] = static_cast<Scalar>(
+                result[1] = static_cast<s_t>(
                     1.0 + (pu[0] * wu[1] - pu[1] * wu[0]) / nz - 1.0);
-                result[2] = static_cast<Scalar>(
+                result[2] = static_cast<s_t>(
                     1.0 + (vu[0] * pu[1] - vu[1] * pu[0]) / nz - 1.0);
-                result[0] = static_cast<Scalar>(1.0 - result[1] - result[2]);
+                result[0] = static_cast<s_t>(1.0 - result[1] - result[2]);
             }
             break;
         }

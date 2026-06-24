@@ -10,7 +10,6 @@
 #include "pmp/viewers/drawable.h"
 #include "pmp/viewers/gl.h"
 #include "pmp/viewers/shader.h"
-#include "pmp/mat_vec.h"
 
 namespace pmp {
 
@@ -158,7 +157,7 @@ protected:
     // compute squared area of triangle. used for triangulate().
     inline Scalar area(const vec3& p0, const vec3& p1, const vec3& p2) const
     {
-        return sqrnorm(cross(p1 - p0, p2 - p0));
+        return (p1 - p0).cross(p2 - p0).squaredNorm();
     }
 
     // triangulate a polygon such that the sum of squared triangle areas is minimized.

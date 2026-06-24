@@ -3,7 +3,6 @@
 
 #include "lasso_drawable.h"
 #include "lasso_shader.h"
-#include "pmp/mat_vec.h"
 #include "pmp/viewers/gl.h"
 
 namespace pmp {

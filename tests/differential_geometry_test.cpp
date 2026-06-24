@@ -68,7 +68,7 @@ TEST_F(DifferentialGeometryTest, laplace)
 {
     one_ring();
     auto lv = laplace(mesh, central_vertex);
-    EXPECT_GT(norm(lv), 0);
+    EXPECT_GT(lv.norm(), 0);
 }
 
 TEST_F(DifferentialGeometryTest, area_surface)
@@ -86,5 +86,5 @@ TEST_F(DifferentialGeometryTest, volume)
 TEST_F(DifferentialGeometryTest, centroid)
 {
     auto center = centroid(sphere);
-    EXPECT_LT(norm(center), 1e-5);
+    EXPECT_LT(center.norm(), 1e-5);
 }

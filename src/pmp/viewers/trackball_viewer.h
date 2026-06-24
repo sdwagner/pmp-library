@@ -7,7 +7,6 @@
 #include <vector>
 
 #include "pmp/viewers/window.h"
-#include "pmp/mat_vec.h"
 
 namespace pmp {
 

@@ -144,7 +144,7 @@ void write_off_binary(const SurfaceMesh& mesh,
     auto points = mesh.get_vertex_property<Point>("v:point");
     for (auto v : mesh.vertices())
     {
-        const vec3 p = (vec3)points[v];
+        const vec3 p = points[v].cast<float>();
         write_binary(ofs, p[0]);
         write_binary(ofs, p[1]);
         write_binary(ofs, p[2]);
