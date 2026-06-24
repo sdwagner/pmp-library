@@ -115,8 +115,8 @@ protected:
     float near_, far_, fovy_;
 
     //! OpenGL matrices
-    mat4 projection_matrix_;
-    mat4 modelview_matrix_;
+    Eigen::Projective3f projection_matrix_;
+    Eigen::Affine3f modelview_matrix_;
 
     //! trackball helpers
     ivec2 prev_point_2d_;

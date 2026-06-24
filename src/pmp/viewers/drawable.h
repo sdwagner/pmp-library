@@ -20,7 +20,7 @@ public:
     //! Draw the object
     //! \param projection Projection matrix
     //! \param modelview Modelview matrix
-    virtual void draw(const mat4& projection, const mat4& modelview) = 0;
+    virtual void draw(const Eigen::Projective3f& projection, const Eigen::Affine3f& modelview) = 0;
 };
 
 } // namespace pmp

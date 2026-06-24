@@ -103,8 +103,8 @@ void Viewer::draw(const std::string& draw_mode)
         glViewport(width() - size - 1, height() - size - 1, size, size);
 
         // setup matrices
-        mat4 P = ortho_matrix(0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f);
-        mat4 M = mat4::Identity();
+        Eigen::Projective3f P = ortho_matrix(0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f);
+        Eigen::Affine3f M = Eigen::Affine3f::Identity();
 
         // draw mesh once more
         renderer_.draw(P, M, "Texture Layout");

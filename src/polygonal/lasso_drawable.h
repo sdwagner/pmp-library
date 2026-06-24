@@ -18,7 +18,7 @@ public:
 
     void update_lasso(const std::vector<ivec2>& lasso_points_screen);
     void update_buffers() override;
-    void draw(const mat4& projection, const mat4& modelview) override;
+    void draw(const Eigen::Projective3f& projection, const Eigen::Affine3f& modelview) override;
 
 private:
     // OpenGL buffers

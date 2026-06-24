@@ -1401,14 +1401,12 @@ Vertex Polygonal::pick_vertex(int x, int y)
     vec4 ray_clip(ndc_x, ndc_y, -1.0f, 1.0f);
 
     // ray in world space
-    mat4 ipm = (projection_matrix_ * modelview_matrix_).inverse();
+    Eigen::Projective3f ipm = (projection_matrix_ * modelview_matrix_).inverse();
     vec4 ray_world = ipm * ray_clip;
     ray_world /= ray_world[3];
 
     // camera position in world space (origin transformed by inverse modelview)
-    mat4 imv = modelview_matrix_.inverse();
-    vec4 cam_pos4 = imv * vec4(0.0f, 0.0f, 0.0f, 1.0f);
-    vec3 cam_pos(cam_pos4[0], cam_pos4[1], cam_pos4[2]);
+    vec3 cam_pos = modelview_matrix_.inverse() * vec3::Zero();
 
     // ray direction
     vec3 ray_dir =
@@ -1482,9 +1480,7 @@ void Polygonal::select_lasso(bool surface)
     const auto pmv = projection_matrix_ * modelview_matrix_;
 
     // camera position in world space
-    mat4 imv = modelview_matrix_.inverse();
-    vec4 cam_pos4 = imv * vec4(0.0f, 0.0f, 0.0f, 1.0f);
-    vec3 cam_pos(cam_pos4[0], cam_pos4[1], cam_pos4[2]);
+    vec3 cam_pos = modelview_matrix_.inverse() * vec3::Zero();
 
     // build AABB tree if needed
     if (surface && !tree_)
@@ -1586,10 +1582,10 @@ vec3 Polygonal::translation(double xpos, double ypos)
     float dx = (current_pos[0] - prev_point_2d_[0]) / w * radius;
     float dy = (current_pos[1] - prev_point_2d_[1]) / h * radius;
 
-    mat4 M = projection_matrix_ * modelview_matrix_;
+    Eigen::Projective3f M = projection_matrix_ * modelview_matrix_;
 
-    vec3 up(M(1, 0), M(1, 1), M(1, 2));
-    vec3 right(M(0, 0), M(0, 1), M(0, 2));
+    vec3 up(M.linear().row(1));
+    vec3 right(M.linear().row(0));
 
     return (-up * dy + right * dx);
 }

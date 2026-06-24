@@ -81,7 +81,7 @@ public:
     void set_use_colors(bool use_colors) { use_colors_ = use_colors; }
 
     //! Draw the mesh.
-    void draw(const mat4& projection_matrix, const mat4& modelview_matrix,
+    void draw(const Eigen::Projective3f& projection_matrix, const Eigen::Affine3f& modelview_matrix,
               const std::string& draw_mode);
 
     //! Update all OpenGL buffers for rendering.

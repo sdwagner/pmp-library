@@ -65,7 +65,7 @@ void LassoDrawable::update_buffers()
     glBindVertexArray(0);
 }
 
-void LassoDrawable::draw(const mat4&, const mat4&)
+void LassoDrawable::draw(const Eigen::Projective3f&, const Eigen::Affine3f&)
 {
     if (lasso_points_ndc_.empty())
         return;

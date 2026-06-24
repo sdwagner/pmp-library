@@ -10,7 +10,7 @@
 namespace pmp {
 
 //! OpenGL perspective projection matrix
-inline mat4 perspective_matrix(float fovy, float aspect, float zNear,
+inline Eigen::Projective3f perspective_matrix(float fovy, float aspect, float zNear,
                                           float zFar)
 {
     const float t = zNear * std::tan(fovy * (float)std::numbers::pi / 360.0f);
@@ -28,11 +28,11 @@ inline mat4 perspective_matrix(float fovy, float aspect, float zNear,
     m(2, 2) = -(zFar + zNear) / fn;
     m(2, 3) = -zFar * nn / fn;
     m(3, 2) = -1.0f;
-    return m;
+    return Eigen::Projective3f(m);
 }
 
 //! OpenGL orthographic projection matrix
-inline mat4 ortho_matrix(float left, float right, float bottom,
+inline Eigen::Projective3f ortho_matrix(float left, float right, float bottom,
                                     float top, float zNear = -1.0f,
                                     float zFar = 1.0f)
 {
@@ -44,28 +44,8 @@ inline mat4 ortho_matrix(float left, float right, float bottom,
     m(1, 3) = -(top + bottom) / (top - bottom);
     m(2, 3) = -(zFar + zNear) / (zFar - zNear);
     m(3, 3) = 1.0f;
-    return m;
+    return Eigen::Projective3f(m);
 }
 
-//! OpenGL translation matrix
-inline mat4 translation_matrix(const vec3& t)
-{
-    mat4 m = mat4::Identity();
-    m(0, 3) = t[0];
-    m(1, 3) = t[1];
-    m(2, 3) = t[2];
-    return m;
-}
-
-//! OpenGL rotation matrix (axis-angle, angle in degrees)
-inline mat4 rotation_matrix(const vec3& axis, float angle)
-{
-    mat4 m = mat4::Identity();
-    m.topLeftCorner<3, 3>() =
-        Eigen::AngleAxisf(angle * (float)std::numbers::pi / 180.0f,
-                          axis.normalized())
-            .toRotationMatrix();
-    return m;
-}
 
 } // namespace pmp

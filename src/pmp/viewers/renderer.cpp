@@ -584,7 +584,7 @@ void Renderer::update_opengl_buffers()
         overlay->update_buffers();
 }
 
-void Renderer::draw(const mat4& projection_matrix, const mat4& modelview_matrix,
+void Renderer::draw(const Eigen::Projective3f& projection_matrix, const Eigen::Affine3f& modelview_matrix,
                     const std::string& draw_mode)
 {
     // did we generate buffers already?
@@ -635,15 +635,14 @@ void Renderer::draw(const mat4& projection_matrix, const mat4& modelview_matrix,
     glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
 
     // setup matrices
-    const mat4 mv_matrix = modelview_matrix;
-    const mat4 mvp_matrix = projection_matrix * modelview_matrix;
-    const mat3 n_matrix =
-        mv_matrix.topLeftCorner<3, 3>().transpose().inverse();
+    //const mat4 mv_matrix = modelview_matrix;
+    const Eigen::Projective3f mvp_matrix = projection_matrix * modelview_matrix;
+    const mat3 n_matrix = modelview_matrix.linear().transpose().inverse();
 
     // setup shader
     phong_shader_.use();
-    phong_shader_.set_uniform("modelview_projection_matrix", mvp_matrix);
-    phong_shader_.set_uniform("modelview_matrix", mv_matrix);
+    phong_shader_.set_uniform("modelview_projection_matrix", mvp_matrix.matrix());
+    phong_shader_.set_uniform("modelview_matrix", modelview_matrix.matrix());
     phong_shader_.set_uniform("normal_matrix", n_matrix);
     phong_shader_.set_uniform("point_size", (float)point_size_);
     phong_shader_.set_uniform("light1", vec3(1.0, 1.0, 1.0));
@@ -714,7 +713,7 @@ void Renderer::draw(const mat4& projection_matrix, const mat4& modelview_matrix,
             {
                 matcap_shader_.use();
                 matcap_shader_.set_uniform("modelview_projection_matrix",
-                                           mvp_matrix);
+                                           mvp_matrix.matrix());
                 matcap_shader_.set_uniform("normal_matrix", n_matrix);
                 matcap_shader_.set_uniform("alpha", alpha_);
                 glBindTexture(GL_TEXTURE_2D, texture_);

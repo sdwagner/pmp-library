@@ -105,8 +105,7 @@ void TrackballViewer::keyboard(int key, int code, int action, int mods)
 void TrackballViewer::display()
 {
     // adjust clipping planes to tightly fit bounding sphere
-    const vec4 mc = center_.homogeneous();
-    vec4 ec = modelview_matrix_ * mc;
+    const vec3 ec = modelview_matrix_ * center_;
     const float z = -ec[2];
     near_ = 0.01 * radius_;
     far_ = 10.0 * radius_;
@@ -215,8 +214,7 @@ void TrackballViewer::set_scene(const vec3& center, float radius)
 
 void TrackballViewer::view_all()
 {
-    const vec4 c = center_.homogeneous();
-    vec4 t = modelview_matrix_ * c;
+    const vec3 t = modelview_matrix_ * center_;
     translate(vec3(-t[0], -t[1], -t[2] - 2.5 * radius_));
 }
 
@@ -252,8 +250,8 @@ bool TrackballViewer::pick(int x, int y, vec3& result)
             1.0f;
         zf = zf * 2.0f - 1.0f;
 
-        const mat4 mvp = projection_matrix_ * modelview_matrix_;
-        const mat4 inv = mvp.inverse();
+        const Eigen::Projective3f mvp = projection_matrix_ * modelview_matrix_;
+        const Eigen::Projective3f inv = mvp.inverse();
         vec4 p = inv * vec4(xf, yf, zf, 1.0f);
         p /= p[3];
 
@@ -273,8 +271,7 @@ void TrackballViewer::fly_to(int x, int y)
     if (pick(x, y, p))
     {
         center_ = p;
-        const vec4 c = center_.homogeneous();
-        vec4 t = modelview_matrix_ * c;
+        const vec3 t = modelview_matrix_ * center_;
         translate(vec3(-t[0], -t[1], -0.5 * t[2]));
     }
 }
@@ -333,9 +330,8 @@ void TrackballViewer::translation(int x, int y)
     const float dx = x - prev_point_2d_[0];
     const float dy = y - prev_point_2d_[1];
 
-    const vec4 mc = center_.homogeneous();
-    vec4 ec = modelview_matrix_ * mc;
-    const float z = -(ec[2] / ec[3]);
+    const vec3 ec = modelview_matrix_ * center_;
+    const float z = -ec[2];
 
     const float aspect = (float)width() / (float)height();
     const float up = tan(fovy_ / 2.0f * std::numbers::pi / 180.f) * near_;
@@ -354,18 +350,16 @@ void TrackballViewer::zoom(int, int y)
 
 void TrackballViewer::translate(const vec3& t)
 {
-    modelview_matrix_ = translation_matrix(t) * modelview_matrix_;
+    modelview_matrix_ = Eigen::Translation3f(t) * modelview_matrix_;
 }
 
 void TrackballViewer::rotate(const vec3& axis, float angle)
 {
-    // center in eye coordinates
-    const vec4 mc = center_.homogeneous();
-    vec4 ec = modelview_matrix_ * mc;
-    const vec3 c(ec[0] / ec[3], ec[1] / ec[3], ec[2] / ec[3]);
-
-    modelview_matrix_ = translation_matrix(c) * rotation_matrix(axis, angle) *
-                        translation_matrix(-c) * modelview_matrix_;
+    const vec3 c = modelview_matrix_ * center_;
+    const Eigen::AngleAxisf rot(angle * (float)std::numbers::pi / 180.0f,
+                          axis.normalized());
+    modelview_matrix_ =
+        Eigen::Translation3f(c) * rot * Eigen::Translation3f(-c) * modelview_matrix_;
 }
 
 double TrackballViewer::measure_fps()
