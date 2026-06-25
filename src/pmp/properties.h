@@ -13,6 +13,24 @@
 
 namespace pmp {
 
+template <class T>
+concept EigenType = requires
+{
+    typename T::Scalar;
+    T::RowsAtCompileTime;
+    T::ColsAtCompileTime;
+    T::Zero();
+};
+
+template <class T>
+T prop_default_value()
+{
+    if constexpr (EigenType<T>)
+        return T::Zero();
+    else
+        return T{};
+}
+
 class BasePropertyArray
 {
 public:
@@ -214,7 +232,7 @@ public:
 
     // add a property with name \p name and default value \p t
     template <class T>
-    Property<T> add(const std::string& name, const T t = T())
+    Property<T> add(const std::string& name, const T t = prop_default_value<T>())
     {
         // throw exception if a property with this name already exists
         for (const auto* parray : parrays_)

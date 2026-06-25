@@ -1413,7 +1413,7 @@ public:
     //! invalid property
     template <class T>
     VertexProperty<T> add_vertex_property(const std::string& name,
-                                          const T t = T())
+                                          const T t = prop_default_value<T>())
     {
         return VertexProperty<T>(vprops_.add<T>(name, t));
     }
@@ -1431,7 +1431,7 @@ public:
     //! returned. otherwise this property is added (with default value \c
     //! t)
     template <class T>
-    VertexProperty<T> vertex_property(const std::string& name, const T t = T())
+    VertexProperty<T> vertex_property(const std::string& name, const T t = prop_default_value<T>())
     {
         return VertexProperty<T>(vprops_.get_or_add<T>(name, t));
     }
@@ -1455,7 +1455,7 @@ public:
     //! invalid property.
     template <class T>
     HalfedgeProperty<T> add_halfedge_property(const std::string& name,
-                                              const T t = T())
+                                              const T t = prop_default_value<T>())
     {
         return HalfedgeProperty<T>(hprops_.add<T>(name, t));
     }
@@ -1465,7 +1465,7 @@ public:
     //! since the name has to be unique.  in this case it returns an
     //! invalid property.
     template <class T>
-    EdgeProperty<T> add_edge_property(const std::string& name, const T t = T())
+    EdgeProperty<T> add_edge_property(const std::string& name, const T t = prop_default_value<T>())
     {
         return EdgeProperty<T>(eprops_.add<T>(name, t));
     }
@@ -1493,7 +1493,7 @@ public:
     //! t)
     template <class T>
     HalfedgeProperty<T> halfedge_property(const std::string& name,
-                                          const T t = T())
+                                          const T t = prop_default_value<T>())
     {
         return HalfedgeProperty<T>(hprops_.get_or_add<T>(name, t));
     }
@@ -1502,7 +1502,7 @@ public:
     //! returned.  otherwise this property is added (with default value \c
     //! t)
     template <class T>
-    EdgeProperty<T> edge_property(const std::string& name, const T t = T())
+    EdgeProperty<T> edge_property(const std::string& name, const T t = prop_default_value<T>())
     {
         return EdgeProperty<T>(eprops_.get_or_add<T>(name, t));
     }
@@ -1555,7 +1555,7 @@ public:
     //! t.  fails if a property named \p name exists already, since the name has
     //! to be unique.  in this case it returns an invalid property
     template <class T>
-    FaceProperty<T> add_face_property(const std::string& name, const T t = T())
+    FaceProperty<T> add_face_property(const std::string& name, const T t = prop_default_value<T>())
     {
         return FaceProperty<T>(fprops_.add<T>(name, t));
     }
@@ -1572,7 +1572,7 @@ public:
     //! if a face property of type \p T with name \p name exists, it is
     //! returned.  otherwise this property is added (with default value \p t)
     template <class T>
-    FaceProperty<T> face_property(const std::string& name, const T t = T())
+    FaceProperty<T> face_property(const std::string& name, const T t = prop_default_value<T>())
     {
         return FaceProperty<T>(fprops_.get_or_add<T>(name, t));
     }

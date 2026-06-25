@@ -991,7 +991,7 @@ void Remeshing::tangential_smoothing(unsigned int iterations)
                 }
                 else
                 {
-                    Point p(0);
+                    Point p = Point::Zero();
                     try
                     {
                         p = minimize_squared_areas(v);
