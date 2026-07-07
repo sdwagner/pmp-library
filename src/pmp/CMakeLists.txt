@@ -15,6 +15,8 @@ if(OpenMP_CXX_FOUND)
   target_link_libraries(pmp PUBLIC OpenMP::OpenMP_CXX)
 endif()
 
+target_link_libraries(pmp PUBLIC Eigen3::Eigen)
+
 set_target_properties(pmp PROPERTIES VERSION ${PROJECT_VERSION})
 
 if(WITH_CLANG_TIDY)

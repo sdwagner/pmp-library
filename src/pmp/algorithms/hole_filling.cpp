@@ -598,7 +598,7 @@ void HoleFilling::fairing()
     try
     {
         // fair new vertices
-        minimize_curvature(mesh_);
+        minimize_area(mesh_);
     }
     catch (SolverException& e)
     {

@@ -67,10 +67,15 @@ if(PMP_BUILD_VIEWERS)
   add_subdirectory(${IMGUI_SOURCE_DIR})
 endif(PMP_BUILD_VIEWERS)
 
-if(NOT DEFINED EIGEN3_INCLUDE_DIR)
+find_package(Eigen3 QUIET NO_CMAKE_PACKAGE_REGISTRY)
+if(Eigen3_FOUND)
+  message(STATUS "PMP: Eigen3 — found system installation (v${Eigen3_VERSION})")
+else()
+  unset(Eigen3_DIR CACHE)  # prevent NOTFOUND entry from polluting the CMake cache
+  message(STATUS "PMP: Eigen3 — using copy bundled with PMP")
   set(EIGEN3_INCLUDE_DIR "${PROJECT_SOURCE_DIR}/external/eigen-3.4.0")
+  find_package(Eigen3 3.4.0 REQUIRED)
 endif()
-find_package(Eigen3 3.4.0 REQUIRED)
 
 include_directories(${PROJECT_SOURCE_DIR}/src/)
 

@@ -44,10 +44,10 @@ void write_obj(const SurfaceMesh& mesh, const std::filesystem::path& file,
     }
 
     // write texture coordinates
-    auto tex_coords = mesh.get_halfedge_property<TexCoord>("h:tex");
-    const bool write_texcoords = tex_coords && flags.use_halfedge_texcoords;
+    auto h_tex_coords = mesh.get_halfedge_property<TexCoord>("h:tex");
+    const bool write_h_texcoords = h_tex_coords && flags.use_halfedge_texcoords;
 
-    if (write_texcoords)
+    if (write_h_texcoords)
     {
         if (mesh.n_halfedges() > uint_max)
             throw InvalidInputException(
@@ -55,7 +55,23 @@ void write_obj(const SurfaceMesh& mesh, const std::filesystem::path& file,
 
         for (auto h : mesh.halfedges())
         {
-            const TexCoord& pt = tex_coords[h];
+            const TexCoord& pt = h_tex_coords[h];
+            fprintf(out, "vt %.10f %.10f\n", pt[0], pt[1]);
+        }
+    }
+
+    auto v_tex_coords = mesh.get_vertex_property<TexCoord>("v:tex");
+    const bool write_v_texcoords = v_tex_coords && flags.use_vertex_texcoords && !write_h_texcoords;
+
+    if (write_v_texcoords)
+    {
+        if (mesh.n_vertices() > uint_max)
+            throw InvalidInputException(
+                "Mesh too large to be written with 32-bit indices.");
+
+        for (auto v : mesh.vertices())
+        {
+            const TexCoord& pt = v_tex_coords[v];
             fprintf(out, "vt %.10f %.10f\n", pt[0], pt[1]);
         }
     }
@@ -69,7 +85,7 @@ void write_obj(const SurfaceMesh& mesh, const std::filesystem::path& file,
         for (auto v : mesh.vertices(f))
         {
             auto idx = (uint32_t)(v.idx() + 1);
-            if (write_texcoords)
+            if (write_h_texcoords)
             {
                 if (write_normals)
                 {
@@ -80,7 +96,7 @@ void write_obj(const SurfaceMesh& mesh, const std::filesystem::path& file,
                 else
                 {
                     // write vertex index, texCoord index
-                    fprintf(out, " %d/%d/", idx, (uint32_t)(*h).idx() + 1);
+                    fprintf(out, " %d/%d", idx, (uint32_t)(*h).idx() + 1);
                 }
                 ++h;
             }

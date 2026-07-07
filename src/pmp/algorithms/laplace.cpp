@@ -2,6 +2,7 @@
 // Copyright 2020 Astrid Bunge, Philipp Herholz, Misha Kazhdan, Mario Botsch.
 // SPDX-License-Identifier: MIT
 
+#define EIGEN_DONT_VECTORIZE
 #include "pmp/algorithms/laplace.h"
 
 // #define TFEM
