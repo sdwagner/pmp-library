@@ -3,10 +3,13 @@
 
 #include "pmp/algorithms/hole_filling.h"
 
+#include <array>
+#include <algorithm>
 #include <Eigen/Dense>
 #include <Eigen/Sparse>
 
 #include <limits>
+#include <numeric>
 #include <vector>
 
 #include "pmp/algorithms/fairing.h"
@@ -18,7 +21,7 @@ namespace {
 class HoleFilling
 {
 public:
-    explicit HoleFilling(SurfaceMesh& mesh);
+    explicit HoleFilling(SurfaceMesh& mesh, bool adaptive_refinement);
     void fill_hole(Halfedge h);
 
 private:
@@ -54,8 +57,18 @@ private:
 
     // refine triangulation (isotropic remeshing)
     void refine();
+    void adaptive_refine();
     void split_long_edges(const Scalar lmax);
     void collapse_short_edges(const Scalar lmin);
+    Scalar target_length(const Point& p, Scalar interior_target,
+                         Scalar transition_width) const;
+    void update_target_lengths(VertexProperty<Scalar>& target_lengths,
+                               Scalar interior_target,
+                               Scalar transition_width) const;
+    void adaptive_split_long_edges(VertexProperty<Scalar>& target_lengths,
+                                   Scalar interior_target,
+                                   Scalar transition_width);
+    void adaptive_collapse_short_edges(const VertexProperty<Scalar>& target_lengths);
     void flip_edges();
     void relaxation();
     void remove_caps();
@@ -90,6 +103,7 @@ private:
 
     // mesh and properties
     SurfaceMesh& mesh_;
+    bool adaptive_refinement_;
     VertexProperty<Point> points_;
     VertexProperty<bool> vlocked_;
     EdgeProperty<bool> elocked_;
@@ -101,7 +115,8 @@ private:
     std::vector<std::vector<int>> index_;
 };
 
-HoleFilling::HoleFilling(SurfaceMesh& mesh) : mesh_(mesh)
+HoleFilling::HoleFilling(SurfaceMesh& mesh, const bool adaptive_refinement)
+    : mesh_(mesh), adaptive_refinement_(adaptive_refinement)
 {
     points_ = mesh_.vertex_property<Point>("v:point");
 }
@@ -156,7 +171,10 @@ void HoleFilling::fill_hole(Halfedge h)
     try
     {
         triangulate_hole(h); // do minimal triangulation
-        refine();            // refine filled-in edges
+        if (adaptive_refinement_)
+            adaptive_refine();
+        else
+            refine();
     }
     catch (InvalidInputException& e)
     {
@@ -398,6 +416,176 @@ void HoleFilling::collapse_short_edges(const Scalar _lmin)
     mesh_.garbage_collection();
 }
 
+void HoleFilling::adaptive_refine()
+{
+    // Use the mean boundary length as the interior target. Near the loop, the
+    // target is instead derived from its four nearest boundary segments.
+    const int n = hole_.size();
+    std::vector<Scalar> boundary_lengths;
+    boundary_lengths.reserve(n);
+    for (int i = 0; i < n; ++i)
+    {
+        boundary_lengths.push_back(distance(points_[hole_vertex(i)],
+                                            points_[hole_vertex((i + 1) % n)]));
+    }
+    const Scalar interior_target = std::accumulate(boundary_lengths.begin(),
+                                                    boundary_lengths.end(), Scalar{0}) / n;
+    // Keep the fine resolution close to the fixed boundary, then return to the
+    // old mean-size target in the cap interior.
+    const Scalar transition_width = Scalar{4} * interior_target;
+    auto target_lengths = mesh_.add_vertex_property<Scalar>("HoleFilling:target_length", 0);
+
+    // do some iterations
+    for (int iter = 0; iter < 10; ++iter)
+    {
+        update_target_lengths(target_lengths, interior_target, transition_width);
+        adaptive_split_long_edges(target_lengths, interior_target, transition_width);
+        adaptive_collapse_short_edges(target_lengths);
+        flip_edges();
+        relaxation();
+    }
+    remove_caps();
+    fairing();
+    mesh_.remove_vertex_property(target_lengths);
+}
+
+Scalar HoleFilling::target_length(const Point& p, const Scalar interior_target,
+                                  const Scalar transition_width) const
+{
+    struct BoundaryEdge
+    {
+        Scalar distance;
+        Scalar length;
+    };
+    std::array<BoundaryEdge, 4> nearest;
+    for (auto& edge : nearest)
+        edge = {std::numeric_limits<Scalar>::max(), Scalar{0}};
+
+    for (size_t i = 0; i < hole_.size(); ++i)
+    {
+        const Point& a = points_[hole_vertex(i)];
+        const Point& b = points_[hole_vertex((i + 1) % hole_.size())];
+        const Point ab = b - a;
+        const Scalar length_squared = dot(ab, ab);
+        const Scalar t = length_squared > Scalar{0}
+            ? std::clamp(dot(p - a, ab) / length_squared, Scalar{0}, Scalar{1})
+            : Scalar{0};
+        const BoundaryEdge candidate{distance(p, a + t * ab), distance(a, b)};
+        for (size_t j = 0; j < nearest.size(); ++j)
+        {
+            if (candidate.distance >= nearest[j].distance)
+                continue;
+            for (size_t k = nearest.size() - 1; k > j; --k)
+                nearest[k] = nearest[k - 1];
+            nearest[j] = candidate;
+            break;
+        }
+    }
+    const size_t nearest_count = std::min(nearest.size(), hole_.size());
+    Scalar local_boundary_target = Scalar{0};
+    for (size_t i = 0; i < nearest_count; ++i)
+        local_boundary_target += nearest[i].length;
+    local_boundary_target /= static_cast<Scalar>(nearest_count);
+    const Scalar blend = std::clamp(nearest.front().distance / transition_width,
+                                    Scalar{0}, Scalar{1});
+    return (Scalar{1} - blend) * local_boundary_target
+         + blend * interior_target;
+}
+
+void HoleFilling::update_target_lengths(VertexProperty<Scalar>& target_lengths,
+                                        const Scalar interior_target,
+                                        const Scalar transition_width) const
+{
+    for (size_t i = 0; i < hole_.size(); ++i)
+    {
+        const Vertex v = hole_vertex(i);
+        target_lengths[v] = target_length(points_[v], interior_target, transition_width);
+    }
+    for (auto v : mesh_.vertices())
+        if (!vlocked_[v])
+            target_lengths[v] = target_length(points_[v], interior_target, transition_width);
+}
+
+void HoleFilling::adaptive_split_long_edges(VertexProperty<Scalar>& target_lengths,
+                                            const Scalar interior_target,
+                                            const Scalar transition_width)
+{
+    bool ok;
+    int i;
+
+    for (ok = false, i = 0; !ok && i < 10; ++i)
+    {
+        ok = true;
+
+        for (auto e : mesh_.edges())
+        {
+            if (!elocked_[e])
+            {
+                const Halfedge h10 = mesh_.halfedge(e, 0);
+                const Halfedge h01 = mesh_.halfedge(e, 1);
+                const Vertex v0 = mesh_.to_vertex(h10);
+                const Vertex v1 = mesh_.to_vertex(h01);
+                const Point& p0 = points_[v0];
+                const Point& p1 = points_[v1];
+                const Scalar target = Scalar{0.5} * (target_lengths[v0] + target_lengths[v1]);
+
+                if (distance(p0, p1) > Scalar{1.5} * target)
+                {
+                    const Point midpoint = Scalar{0.5} * (p0 + p1);
+                    const Halfedge new_halfedge = mesh_.split(e, midpoint);
+                    const Vertex new_vertex = mesh_.to_vertex(new_halfedge);
+                    target_lengths[new_vertex] = target_length(
+                        midpoint, interior_target, transition_width);
+                    ok = false;
+                }
+            }
+        }
+    }
+}
+
+void HoleFilling::adaptive_collapse_short_edges(const VertexProperty<Scalar>& target_lengths)
+{
+    bool ok;
+    int i;
+
+    for (ok = false, i = 0; !ok && i < 10; ++i)
+    {
+        ok = true;
+
+        for (auto e : mesh_.edges())
+        {
+            if (!mesh_.is_deleted(e) && !elocked_[e])
+            {
+                const Halfedge h10 = mesh_.halfedge(e, 0);
+                const Halfedge h01 = mesh_.halfedge(e, 1);
+                const Vertex v0 = mesh_.to_vertex(h10);
+                const Vertex v1 = mesh_.to_vertex(h01);
+                const Point& p0 = points_[v0];
+                const Point& p1 = points_[v1];
+                const Scalar target = Scalar{0.5} * (target_lengths[v0] + target_lengths[v1]);
+
+                // edge too short?
+                if (distance(p0, p1) < Scalar{0.7} * target)
+                {
+                    Halfedge h;
+                    if (!vlocked_[v0])
+                        h = h01;
+                    else if (!vlocked_[v1])
+                        h = h10;
+
+                    if (h.is_valid() && mesh_.is_collapse_ok(h))
+                    {
+                        mesh_.collapse(h);
+                        ok = false;
+                    }
+                }
+            }
+        }
+    }
+
+    mesh_.garbage_collection();
+}
+
 void HoleFilling::flip_edges()
 {
     Vertex v0, v1, v2, v3;
@@ -615,8 +803,8 @@ void HoleFilling::fairing()
 
 } // namespace
 
-void fill_hole(SurfaceMesh& mesh, Halfedge h)
+void fill_hole(SurfaceMesh& mesh, Halfedge h, const bool adaptive_refinement)
 {
-    HoleFilling(mesh).fill_hole(h);
+    HoleFilling(mesh, adaptive_refinement).fill_hole(h);
 }
 } // namespace pmp

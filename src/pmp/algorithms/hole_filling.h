@@ -19,6 +19,8 @@ namespace pmp {
 //! \throw InvalidInputException in case on of the input preconditions is violated
 //! \note This algorithm works on general polygon meshes.
 //! \ingroup algorithms
-void fill_hole(SurfaceMesh& mesh, Halfedge h);
+// When enabled, adaptive refinement uses local boundary-edge lengths near the
+// loop and transitions to the original mean-length target in the interior.
+void fill_hole(SurfaceMesh& mesh, Halfedge h, bool adaptive_refinement = false);
 
 } // namespace pmp
